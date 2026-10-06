@@ -55,6 +55,10 @@ static float getSpeed() {
 
 static void applySpeed() {
 
+    if (g_menuPausedGame) {
+        return;
+    }
+
     float speed = std::clamp(
         getSpeed(),
         0.25f,
@@ -76,11 +80,8 @@ class SamuelPopup : public geode::Popup {
 protected:
 
     ButtonSprite* m_noclipSprite = nullptr;
-
     ButtonSprite* m_hitboxSprite = nullptr;
-
     ButtonSprite* m_practiceSprite = nullptr;
-
     CCLabelBMFont* m_speedLabel = nullptr;
 
 
@@ -90,10 +91,8 @@ protected:
             390.f,
             280.f
         )) {
-
             return false;
         }
-
 
         this->setTitle(
             "Samuel Mod Menu"
@@ -120,9 +119,7 @@ protected:
         );
 
 
-        // ==============================================
         // NOCLIP
-        // ==============================================
 
         m_noclipSprite =
             ButtonSprite::create(
@@ -155,9 +152,7 @@ protected:
         );
 
 
-        // ==============================================
         // HITBOXES
-        // ==============================================
 
         m_hitboxSprite =
             ButtonSprite::create(
@@ -190,9 +185,7 @@ protected:
         );
 
 
-        // ==============================================
         // AUTO PRACTICE
-        // ==============================================
 
         m_practiceSprite =
             ButtonSprite::create(
@@ -225,9 +218,7 @@ protected:
         );
 
 
-        // ==============================================
         // RESTART
-        // ==============================================
 
         auto restartSprite =
             ButtonSprite::create(
@@ -260,9 +251,7 @@ protected:
         );
 
 
-        // ==============================================
         // SPEED -
-        // ==============================================
 
         auto slowerSprite =
             ButtonSprite::create(
@@ -295,9 +284,7 @@ protected:
         );
 
 
-        // ==============================================
         // SPEED TEXT
-        // ==============================================
 
         m_speedLabel =
             CCLabelBMFont::create(
@@ -319,9 +306,7 @@ protected:
         );
 
 
-        // ==============================================
         // SPEED +
-        // ==============================================
 
         auto fasterSprite =
             ButtonSprite::create(
@@ -354,9 +339,7 @@ protected:
         );
 
 
-        // ==============================================
         // RESET SPEED
-        // ==============================================
 
         auto resetSprite =
             ButtonSprite::create(
@@ -394,10 +377,6 @@ protected:
         return true;
     }
 
-
-    // ==================================================
-    // UPDATE BUTTON TEXT
-    // ==================================================
 
     void refresh() {
 
@@ -446,10 +425,6 @@ protected:
     }
 
 
-    // ==================================================
-    // NOCLIP
-    // ==================================================
-
     void onNoclip(
         CCObject*
     ) {
@@ -462,10 +437,6 @@ protected:
         refresh();
     }
 
-
-    // ==================================================
-    // HITBOXES
-    // ==================================================
 
     void onHitboxes(
         CCObject*
@@ -504,10 +475,6 @@ protected:
     }
 
 
-    // ==================================================
-    // PRACTICE
-    // ==================================================
-
     void onPractice(
         CCObject*
     ) {
@@ -536,10 +503,6 @@ protected:
     }
 
 
-    // ==================================================
-    // RESTART
-    // ==================================================
-
     void onRestart(
         CCObject*
     ) {
@@ -567,10 +530,6 @@ protected:
     }
 
 
-    // ==================================================
-    // SPEED DOWN
-    // ==================================================
-
     void onSlower(
         CCObject*
     ) {
@@ -592,10 +551,6 @@ protected:
         refresh();
     }
 
-
-    // ==================================================
-    // SPEED UP
-    // ==================================================
 
     void onFaster(
         CCObject*
@@ -619,10 +574,6 @@ protected:
     }
 
 
-    // ==================================================
-    // RESET SPEED
-    // ==================================================
-
     void onNormalSpeed(
         CCObject*
     ) {
@@ -638,9 +589,7 @@ protected:
     }
 
 
-    // ==================================================
-    // CLOSE MOD MENU
-    // ==================================================
+    // CLOSE MENU AND UNFREEZE LEVEL
 
     void onClose(
         CCObject* sender
@@ -654,23 +603,21 @@ protected:
             g_menuPausedGame
         ) {
 
-            g_menuPausedGame =
-                false;
-
-
             if (
                 auto play =
                     PlayLayer::get()
             ) {
 
-                if (
-                    play->m_isPaused
-                ) {
+                play->m_isPaused =
+                    false;
 
-                    play->resume();
-                }
+                play
+                    ->resumeSchedulerAndActions();
             }
 
+
+            g_menuPausedGame =
+                false;
 
             applySpeed();
         }
@@ -722,6 +669,8 @@ public:
 
 static void toggleSamuelMenu() {
 
+    // M PRESSED WHILE MENU IS OPEN
+
     if (
         g_samuelPopup &&
         g_samuelPopup->getParent()
@@ -744,7 +693,7 @@ static void toggleSamuelMenu() {
     }
 
 
-    // PAUSE LEVEL
+    // FREEZE GAME WITHOUT ESC MENU
 
     if (
         auto play =
@@ -752,13 +701,14 @@ static void toggleSamuelMenu() {
     ) {
 
         if (
-            !play->m_isPaused &&
-            play->canPauseGame()
+            !play->m_isPaused
         ) {
 
-            play->pauseGame(
-                false
-            );
+            play->m_isPaused =
+                true;
+
+            play
+                ->pauseSchedulerAndActions();
 
             g_menuPausedGame =
                 true;
@@ -775,7 +725,7 @@ static void toggleSamuelMenu() {
 
 
 // ======================================================
-// M KEY
+// M HOTKEY
 // ======================================================
 
 class $modify(
@@ -874,7 +824,7 @@ class $modify(
 
         auto size =
             CCDirector::get()
-            ->getWinSize();
+                ->getWinSize();
 
 
         button->setPosition({

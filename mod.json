@@ -1,0 +1,11 @@
+{
+  "geode": "5.10.1",
+  "gd": {
+    "win": "2.2081"
+  },
+  "id": "samuel.mod-menu",
+  "name": "Samuel Mod Menu",
+  "version": "v1.0.0",
+  "developer": "Samuel",
+  "description": "Samuel's custom Geometry Dash mod menu."
+}

@@ -7,5 +7,14 @@
   "name": "Samuel Mod Menu",
   "version": "v1.0.0",
   "developer": "Samuel",
-  "description": "Samuel's custom Geometry Dash mod menu."
+  "description": "Samuel's custom Geometry Dash mod menu.",
+  "settings": {
+    "open-menu": {
+      "type": "keybind",
+      "name": "Open Samuel Mods",
+      "description": "Open or close the Samuel Mod Menu",
+      "default": "M",
+      "category": "universal"
+    }
+  }
 }

@@ -42,15 +42,19 @@ protected:
 
         this->setTitle("Samuel Mod Menu");
 
-        auto category = CCLabelBMFont::create("GAMEPLAY", "goldFont.fnt");
+        auto category = CCLabelBMFont::create(
+            "GAMEPLAY",
+            "goldFont.fnt"
+        );
+
         category->setScale(0.55f);
+
         m_mainLayer->addChildAtPosition(
             category,
             Anchor::Top,
             ccp(0.f, -45.f)
         );
 
-        // NOCLIP
         m_noclipSprite = ButtonSprite::create(
             "Noclip: OFF",
             130,
@@ -74,7 +78,6 @@ protected:
             ccp(-90.f, 45.f)
         );
 
-        // HITBOXES
         m_hitboxSprite = ButtonSprite::create(
             "Hitboxes: OFF",
             130,
@@ -98,7 +101,6 @@ protected:
             ccp(90.f, 45.f)
         );
 
-        // AUTO PRACTICE
         m_practiceSprite = ButtonSprite::create(
             "Auto Practice: OFF",
             130,
@@ -122,7 +124,6 @@ protected:
             ccp(-90.f, -15.f)
         );
 
-        // RESTART
         auto restartSprite = ButtonSprite::create(
             "Restart Level",
             130,
@@ -146,7 +147,6 @@ protected:
             ccp(90.f, -15.f)
         );
 
-        // SPEED -
         auto slowerSprite = ButtonSprite::create(
             "-",
             45,
@@ -170,7 +170,6 @@ protected:
             ccp(-90.f, 45.f)
         );
 
-        // SPEED LABEL
         m_speedLabel = CCLabelBMFont::create(
             "",
             "bigFont.fnt"
@@ -184,7 +183,6 @@ protected:
             ccp(0.f, 47.f)
         );
 
-        // SPEED +
         auto fasterSprite = ButtonSprite::create(
             "+",
             45,
@@ -208,7 +206,6 @@ protected:
             ccp(90.f, 45.f)
         );
 
-        // RESET SPEED
         auto resetSprite = ButtonSprite::create(
             "Reset 1x",
             100,
@@ -239,13 +236,17 @@ protected:
     void refresh() {
         if (m_noclipSprite) {
             m_noclipSprite->setString(
-                getNoclip() ? "Noclip: ON" : "Noclip: OFF"
+                getNoclip()
+                    ? "Noclip: ON"
+                    : "Noclip: OFF"
             );
         }
 
         if (m_hitboxSprite) {
             m_hitboxSprite->setString(
-                getHitboxes() ? "Hitboxes: ON" : "Hitboxes: OFF"
+                getHitboxes()
+                    ? "Hitboxes: ON"
+                    : "Hitboxes: OFF"
             );
         }
 
@@ -263,7 +264,9 @@ protected:
                 getSpeed()
             );
 
-            m_speedLabel->setString(text.c_str());
+            m_speedLabel->setString(
+                text.c_str()
+            );
         }
     }
 
@@ -285,10 +288,12 @@ protected:
         );
 
         if (auto play = PlayLayer::get()) {
-            play->toggleDebugDraw(enabled);
+            play->toggleDebugDraw();
 
             if (play->m_debugDrawNode) {
-                play->m_debugDrawNode->setVisible(enabled);
+                play->m_debugDrawNode->setVisible(
+                    enabled
+                );
             }
         }
 
@@ -304,7 +309,9 @@ protected:
         );
 
         if (auto play = PlayLayer::get()) {
-            play->togglePracticeMode(enabled);
+            play->togglePracticeMode(
+                enabled
+            );
         }
 
         refresh();
@@ -370,7 +377,10 @@ public:
     static SamuelPopup* create() {
         auto ret = new SamuelPopup();
 
-        if (ret && ret->initSamuel()) {
+        if (
+            ret &&
+            ret->initSamuel()
+        ) {
             ret->autorelease();
             return ret;
         }
@@ -380,13 +390,23 @@ public:
     }
 };
 
-class $modify(SamuelOptionsLayer, OptionsLayer) {
+class $modify(
+    SamuelOptionsLayer,
+    OptionsLayer
+) {
     void customSetup() {
         OptionsLayer::customSetup();
 
         auto menu = CCMenu::create();
-        menu->setPosition({0.f, 0.f});
-        menu->setID("samuel-mod-menu");
+
+        menu->setPosition({
+            0.f,
+            0.f
+        });
+
+        menu->setID(
+            "samuel-mod-menu"
+        );
 
         auto buttonSprite = ButtonSprite::create(
             "SAMUEL MODS",
@@ -402,12 +422,15 @@ class $modify(SamuelOptionsLayer, OptionsLayer) {
         auto button = CCMenuItemSpriteExtra::create(
             buttonSprite,
             this,
-            menu_selector(SamuelOptionsLayer::onSamuelMods)
+            menu_selector(
+                SamuelOptionsLayer::onSamuelMods
+            )
         );
 
         button->setScale(0.65f);
 
-        auto size = CCDirector::get()->getWinSize();
+        auto size =
+            CCDirector::get()->getWinSize();
 
         button->setPosition({
             size.width / 2.f + 150.f,
@@ -415,11 +438,16 @@ class $modify(SamuelOptionsLayer, OptionsLayer) {
         });
 
         menu->addChild(button);
-        this->m_mainLayer->addChild(menu, 100);
+
+        this->m_mainLayer->addChild(
+            menu,
+            100
+        );
     }
 
     void onSamuelMods(CCObject*) {
-        auto popup = SamuelPopup::create();
+        auto popup =
+            SamuelPopup::create();
 
         if (popup) {
             popup->show();
@@ -427,31 +455,40 @@ class $modify(SamuelOptionsLayer, OptionsLayer) {
     }
 };
 
-class $modify(SamuelPlayLayer, PlayLayer) {
+class $modify(
+    SamuelPlayLayer,
+    PlayLayer
+) {
     bool init(
         GJGameLevel* level,
         bool useReplay,
         bool dontCreateObjects
     ) {
-        if (!PlayLayer::init(
-            level,
-            useReplay,
-            dontCreateObjects
-        )) {
+        if (
+            !PlayLayer::init(
+                level,
+                useReplay,
+                dontCreateObjects
+            )
+        ) {
             return false;
         }
 
         applySpeed();
 
         if (getAutoPractice()) {
-            this->togglePracticeMode(true);
+            this->togglePracticeMode(
+                true
+            );
         }
 
         if (getHitboxes()) {
-            this->toggleDebugDraw(true);
+            this->toggleDebugDraw();
 
             if (this->m_debugDrawNode) {
-                this->m_debugDrawNode->setVisible(true);
+                this->m_debugDrawNode->setVisible(
+                    true
+                );
             }
         }
 
@@ -473,13 +510,5 @@ class $modify(SamuelPlayLayer, PlayLayer) {
             player,
             object
         );
-    }
-
-    bool shouldDebugDraw() {
-        if (getHitboxes()) {
-            return true;
-        }
-
-        return PlayLayer::shouldDebugDraw();
     }
 };

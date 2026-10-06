@@ -1,36 +1,490 @@
 #include <Geode/Geode.hpp>
 #include <Geode/modify/OptionsLayer.hpp>
+#include <Geode/modify/PlayLayer.hpp>
+#include <Geode/ui/Popup.hpp>
+#include <fmt/format.h>
+#include <algorithm>
 
 using namespace geode::prelude;
 
-class $modify(SamuelOptionsLayer, OptionsLayer) {
+static bool getNoclip() {
+    return Mod::get()->getSavedValue<bool>("noclip", false);
+}
+
+static bool getHitboxes() {
+    return Mod::get()->getSavedValue<bool>("hitboxes", false);
+}
+
+static bool getAutoPractice() {
+    return Mod::get()->getSavedValue<bool>("auto-practice", false);
+}
+
+static float getSpeed() {
+    return Mod::get()->getSavedValue<float>("speed", 1.0f);
+}
+
+static void applySpeed() {
+    float speed = std::clamp(getSpeed(), 0.25f, 4.0f);
+    CCDirector::sharedDirector()->getScheduler()->setTimeScale(speed);
+}
+
+class SamuelPopup : public Popup<> {
+protected:
+
+    ButtonSprite* m_noclipSprite = nullptr;
+    ButtonSprite* m_hitboxSprite = nullptr;
+    ButtonSprite* m_practiceSprite = nullptr;
+
+    CCLabelBMFont* m_speedLabel = nullptr;
+
+    bool setup() override {
+
+        this->setTitle("Samuel Mod Menu");
+
+        auto category = CCLabelBMFont::create(
+            "GAMEPLAY",
+            "goldFont.fnt"
+        );
+
+        category->setScale(0.55f);
+
+        m_mainLayer->addChildAtPosition(
+            category,
+            Anchor::Top,
+            ccp(0, -45)
+        );
+
+        // NOCLIP
+
+        m_noclipSprite = ButtonSprite::create(
+            "Noclip: OFF",
+            130,
+            0,
+            0.65f,
+            true
+        );
+
+        auto noclipButton =
+            CCMenuItemSpriteExtra::create(
+                m_noclipSprite,
+                this,
+                menu_selector(SamuelPopup::onNoclip)
+            );
+
+        m_buttonMenu->addChildAtPosition(
+            noclipButton,
+            Anchor::Center,
+            ccp(-90, 45)
+        );
+
+        // HITBOXES
+
+        m_hitboxSprite = ButtonSprite::create(
+            "Hitboxes: OFF",
+            130,
+            0,
+            0.65f,
+            true
+        );
+
+        auto hitboxButton =
+            CCMenuItemSpriteExtra::create(
+                m_hitboxSprite,
+                this,
+                menu_selector(SamuelPopup::onHitboxes)
+            );
+
+        m_buttonMenu->addChildAtPosition(
+            hitboxButton,
+            Anchor::Center,
+            ccp(90, 45)
+        );
+
+        // PRACTICE
+
+        m_practiceSprite = ButtonSprite::create(
+            "Auto Practice: OFF",
+            130,
+            0,
+            0.6f,
+            true
+        );
+
+        auto practiceButton =
+            CCMenuItemSpriteExtra::create(
+                m_practiceSprite,
+                this,
+                menu_selector(SamuelPopup::onPractice)
+            );
+
+        m_buttonMenu->addChildAtPosition(
+            practiceButton,
+            Anchor::Center,
+            ccp(-90, -15)
+        );
+
+        // RESTART
+
+        auto restartSprite = ButtonSprite::create(
+            "Restart Level",
+            130,
+            0,
+            0.65f,
+            true
+        );
+
+        auto restartButton =
+            CCMenuItemSpriteExtra::create(
+                restartSprite,
+                this,
+                menu_selector(SamuelPopup::onRestart)
+            );
+
+        m_buttonMenu->addChildAtPosition(
+            restartButton,
+            Anchor::Center,
+            ccp(90, -15)
+        );
+
+        // SPEED MINUS
+
+        auto slowerSprite =
+            ButtonSprite::create(
+                "-",
+                45,
+                0,
+                0.8f,
+                true
+            );
+
+        auto slowerButton =
+            CCMenuItemSpriteExtra::create(
+                slowerSprite,
+                this,
+                menu_selector(SamuelPopup::onSlower)
+            );
+
+        m_buttonMenu->addChildAtPosition(
+            slowerButton,
+            Anchor::Bottom,
+            ccp(-90, 45)
+        );
+
+        // SPEED LABEL
+
+        m_speedLabel =
+            CCLabelBMFont::create(
+                "",
+                "bigFont.fnt"
+            );
+
+        m_speedLabel->setScale(0.55f);
+
+        m_mainLayer->addChildAtPosition(
+            m_speedLabel,
+            Anchor::Bottom,
+            ccp(0, 47)
+        );
+
+        // SPEED PLUS
+
+        auto fasterSprite =
+            ButtonSprite::create(
+                "+",
+                45,
+                0,
+                0.8f,
+                true
+            );
+
+        auto fasterButton =
+            CCMenuItemSpriteExtra::create(
+                fasterSprite,
+                this,
+                menu_selector(SamuelPopup::onFaster)
+            );
+
+        m_buttonMenu->addChildAtPosition(
+            fasterButton,
+            Anchor::Bottom,
+            ccp(90, 45)
+        );
+
+        // RESET SPEED
+
+        auto resetSpeedSprite =
+            ButtonSprite::create(
+                "Reset 1x",
+                100,
+                0,
+                0.6f,
+                true
+            );
+
+        auto resetSpeedButton =
+            CCMenuItemSpriteExtra::create(
+                resetSpeedSprite,
+                this,
+                menu_selector(SamuelPopup::onNormalSpeed)
+            );
+
+        m_buttonMenu->addChildAtPosition(
+            resetSpeedButton,
+            Anchor::Bottom,
+            ccp(0, 16)
+        );
+
+        refresh();
+
+        return true;
+    }
+
+    void refresh() {
+
+        if (m_noclipSprite) {
+
+            m_noclipSprite->setString(
+                getNoclip()
+                    ? "Noclip: ON"
+                    : "Noclip: OFF"
+            );
+        }
+
+        if (m_hitboxSprite) {
+
+            m_hitboxSprite->setString(
+                getHitboxes()
+                    ? "Hitboxes: ON"
+                    : "Hitboxes: OFF"
+            );
+        }
+
+        if (m_practiceSprite) {
+
+            m_practiceSprite->setString(
+                getAutoPractice()
+                    ? "Auto Practice: ON"
+                    : "Auto Practice: OFF"
+            );
+        }
+
+        if (m_speedLabel) {
+
+            auto text =
+                fmt::format(
+                    "Speed {:.2f}x",
+                    getSpeed()
+                );
+
+            m_speedLabel->setString(
+                text.c_str()
+            );
+        }
+    }
+
+    void onNoclip(CCObject*) {
+
+        Mod::get()->setSavedValue(
+            "noclip",
+            !getNoclip()
+        );
+
+        refresh();
+    }
+
+    void onHitboxes(CCObject*) {
+
+        bool enabled =
+            !getHitboxes();
+
+        Mod::get()->setSavedValue(
+            "hitboxes",
+            enabled
+        );
+
+        if (auto play =
+            PlayLayer::get()) {
+
+            play->m_isDebugDrawEnabled =
+                enabled;
+
+            if (play->m_debugDrawNode) {
+
+                play
+                    ->m_debugDrawNode
+                    ->setVisible(enabled);
+            }
+        }
+
+        refresh();
+    }
+
+    void onPractice(CCObject*) {
+
+        bool enabled =
+            !getAutoPractice();
+
+        Mod::get()->setSavedValue(
+            "auto-practice",
+            enabled
+        );
+
+        if (auto play =
+            PlayLayer::get()) {
+
+            play->togglePracticeMode(
+                enabled
+            );
+        }
+
+        refresh();
+    }
+
+    void onRestart(CCObject*) {
+
+        if (auto play =
+            PlayLayer::get()) {
+
+            this->onClose(nullptr);
+
+            play->resetLevel();
+        }
+
+        else {
+
+            FLAlertLayer::create(
+                "Samuel Mod Menu",
+                "Start a level first.",
+                "OK"
+            )->show();
+        }
+    }
+
+    void onSlower(CCObject*) {
+
+        float speed =
+            std::clamp(
+                getSpeed() - 0.25f,
+                0.25f,
+                4.0f
+            );
+
+        Mod::get()->setSavedValue(
+            "speed",
+            speed
+        );
+
+        applySpeed();
+
+        refresh();
+    }
+
+    void onFaster(CCObject*) {
+
+        float speed =
+            std::clamp(
+                getSpeed() + 0.25f,
+                0.25f,
+                4.0f
+            );
+
+        Mod::get()->setSavedValue(
+            "speed",
+            speed
+        );
+
+        applySpeed();
+
+        refresh();
+    }
+
+    void onNormalSpeed(CCObject*) {
+
+        Mod::get()->setSavedValue(
+            "speed",
+            1.0f
+        );
+
+        applySpeed();
+
+        refresh();
+    }
+
+public:
+
+    static SamuelPopup* create() {
+
+        auto ret =
+            new SamuelPopup();
+
+        if (
+            ret &&
+            ret->initAnchored(
+                390.f,
+                280.f
+            )
+        ) {
+
+            ret->autorelease();
+
+            return ret;
+        }
+
+        delete ret;
+
+        return nullptr;
+    }
+};
+
+class $modify(
+    SamuelOptionsLayer,
+    OptionsLayer
+) {
+
     void customSetup() {
+
         OptionsLayer::customSetup();
 
-        auto menu = CCMenu::create();
-        menu->setPosition({0.f, 0.f});
-        menu->setID("samuel-mod-menu");
+        auto menu =
+            CCMenu::create();
 
-        auto buttonSprite = ButtonSprite::create(
-            "SAMUEL MODS",
-            105,
-            0,
-            0.7f,
-            true,
-            "goldFont.fnt",
-            "GJ_button_01.png",
-            0.0f
+        menu->setPosition(
+            {0.f, 0.f}
         );
 
-        auto button = CCMenuItemSpriteExtra::create(
-            buttonSprite,
-            this,
-            menu_selector(SamuelOptionsLayer::onSamuelMods)
+        menu->setID(
+            "samuel-mod-menu"
         );
 
-        button->setScale(0.65f);
+        auto buttonSprite =
+            ButtonSprite::create(
+                "SAMUEL MODS",
+                105,
+                0,
+                0.7f,
+                true,
+                "goldFont.fnt",
+                "GJ_button_01.png",
+                0.0f
+            );
 
-        auto size = CCDirector::get()->getWinSize();
+        auto button =
+            CCMenuItemSpriteExtra::create(
+                buttonSprite,
+                this,
+                menu_selector(
+                    SamuelOptionsLayer::
+                    onSamuelMods
+                )
+            );
+
+        button->setScale(
+            0.65f
+        );
+
+        auto size =
+            CCDirector::get()
+            ->getWinSize();
 
         button->setPosition({
             size.width / 2.f + 150.f,
@@ -38,14 +492,124 @@ class $modify(SamuelOptionsLayer, OptionsLayer) {
         });
 
         menu->addChild(button);
-        this->m_mainLayer->addChild(menu, 100);
+
+        this
+            ->m_mainLayer
+            ->addChild(
+                menu,
+                100
+            );
     }
 
-    void onSamuelMods(CCObject*) {
-        FLAlertLayer::create(
-            "Samuel Mod Menu",
-            "Your Samuel Mod Menu is working!\n\nNoclip\nSpeed Hack\nPractice Tools\nand more coming.",
-            "OK"
-        )->show();
+    void onSamuelMods(
+        CCObject*
+    ) {
+
+        SamuelPopup::create()
+            ->show();
+    }
+};
+
+class $modify(
+    SamuelPlayLayer,
+    PlayLayer
+) {
+
+    bool init(
+        GJGameLevel* level,
+        bool useReplay,
+        bool dontCreateObjects
+    ) {
+
+        if (
+            !PlayLayer::init(
+                level,
+                useReplay,
+                dontCreateObjects
+            )
+        ) {
+
+            return false;
+        }
+
+        applySpeed();
+
+        if (getAutoPractice()) {
+
+            this->togglePracticeMode(
+                true
+            );
+        }
+
+        if (getHitboxes()) {
+
+            this->m_isDebugDrawEnabled =
+                true;
+
+            if (
+                this->m_debugDrawNode
+            ) {
+
+                this
+                    ->m_debugDrawNode
+                    ->setVisible(true);
+            }
+        }
+
+        return true;
+    }
+
+    void destroyPlayer(
+        PlayerObject* player,
+        GameObject* object
+    ) {
+
+        if (
+            getNoclip() &&
+            !m_levelEndAnimationStarted
+        ) {
+
+            return;
+        }
+
+        PlayLayer::destroyPlayer(
+            player,
+            object
+        );
+    }
+
+    bool shouldDebugDraw() {
+
+        if (getHitboxes()) {
+
+            return true;
+        }
+
+        return
+            PlayLayer::
+            shouldDebugDraw();
+    }
+
+    void toggleDebugDraw(
+        bool enabled
+    ) {
+
+        if (getHitboxes()) {
+
+            enabled = true;
+        }
+
+        PlayLayer::toggleDebugDraw(
+            enabled
+        );
+
+        if (
+            getHitboxes() &&
+            m_debugDrawNode
+        ) {
+
+            m_debugDrawNode
+                ->setVisible(true);
+        }
     }
 };

@@ -1,9 +1,8 @@
 #include <Geode/Geode.hpp>
 #include <Geode/modify/OptionsLayer.hpp>
 #include <Geode/modify/PlayLayer.hpp>
+#include <Geode/modify/CCKeyboardDispatcher.hpp>
 #include <Geode/ui/Popup.hpp>
-#include <Geode/loader/GameEvent.hpp>
-#include <Geode/loader/SettingV3.hpp>
 
 #include <fmt/format.h>
 #include <algorithm>
@@ -16,9 +15,10 @@ class SamuelPopup;
 
 static SamuelPopup* g_samuelPopup = nullptr;
 
-// =====================================================
-// SAVED SETTINGS
-// =====================================================
+
+// ======================================================
+// SAVED OPTIONS
+// ======================================================
 
 static bool getNoclip() {
     return Mod::get()->getSavedValue<bool>(
@@ -48,11 +48,13 @@ static float getSpeed() {
     );
 }
 
-// =====================================================
+
+// ======================================================
 // SPEED
-// =====================================================
+// ======================================================
 
 static void applySpeed() {
+
     float speed = std::clamp(
         getSpeed(),
         0.25f,
@@ -64,11 +66,13 @@ static void applySpeed() {
         ->setTimeScale(speed);
 }
 
-// =====================================================
-// SAMUEL POPUP
-// =====================================================
+
+// ======================================================
+// MOD MENU
+// ======================================================
 
 class SamuelPopup : public geode::Popup {
+
 protected:
 
     ButtonSprite* m_noclipSprite = nullptr;
@@ -79,22 +83,22 @@ protected:
 
     CCLabelBMFont* m_speedLabel = nullptr;
 
+
     bool initSamuel() {
 
         if (!geode::Popup::init(
             390.f,
             280.f
         )) {
+
             return false;
         }
+
 
         this->setTitle(
             "Samuel Mod Menu"
         );
 
-        // =================================================
-        // GAMEPLAY TITLE
-        // =================================================
 
         auto category =
             CCLabelBMFont::create(
@@ -115,9 +119,10 @@ protected:
             )
         );
 
-        // =================================================
+
+        // ==============================================
         // NOCLIP
-        // =================================================
+        // ==============================================
 
         m_noclipSprite =
             ButtonSprite::create(
@@ -149,9 +154,10 @@ protected:
             )
         );
 
-        // =================================================
+
+        // ==============================================
         // HITBOXES
-        // =================================================
+        // ==============================================
 
         m_hitboxSprite =
             ButtonSprite::create(
@@ -183,9 +189,10 @@ protected:
             )
         );
 
-        // =================================================
+
+        // ==============================================
         // AUTO PRACTICE
-        // =================================================
+        // ==============================================
 
         m_practiceSprite =
             ButtonSprite::create(
@@ -217,9 +224,10 @@ protected:
             )
         );
 
-        // =================================================
+
+        // ==============================================
         // RESTART
-        // =================================================
+        // ==============================================
 
         auto restartSprite =
             ButtonSprite::create(
@@ -251,9 +259,10 @@ protected:
             )
         );
 
-        // =================================================
-        // SPEED MINUS
-        // =================================================
+
+        // ==============================================
+        // SPEED -
+        // ==============================================
 
         auto slowerSprite =
             ButtonSprite::create(
@@ -285,9 +294,10 @@ protected:
             )
         );
 
-        // =================================================
-        // SPEED LABEL
-        // =================================================
+
+        // ==============================================
+        // SPEED TEXT
+        // ==============================================
 
         m_speedLabel =
             CCLabelBMFont::create(
@@ -308,9 +318,10 @@ protected:
             )
         );
 
-        // =================================================
-        // SPEED PLUS
-        // =================================================
+
+        // ==============================================
+        // SPEED +
+        // ==============================================
 
         auto fasterSprite =
             ButtonSprite::create(
@@ -342,9 +353,10 @@ protected:
             )
         );
 
-        // =================================================
+
+        // ==============================================
         // RESET SPEED
-        // =================================================
+        // ==============================================
 
         auto resetSprite =
             ButtonSprite::create(
@@ -376,14 +388,16 @@ protected:
             )
         );
 
+
         refresh();
 
         return true;
     }
 
-    // =====================================================
-    // REFRESH BUTTON TEXT
-    // =====================================================
+
+    // ==================================================
+    // UPDATE BUTTON TEXT
+    // ==================================================
 
     void refresh() {
 
@@ -396,6 +410,7 @@ protected:
             );
         }
 
+
         if (m_hitboxSprite) {
 
             m_hitboxSprite->setString(
@@ -405,6 +420,7 @@ protected:
             );
         }
 
+
         if (m_practiceSprite) {
 
             m_practiceSprite->setString(
@@ -413,6 +429,7 @@ protected:
                     : "Auto Practice: OFF"
             );
         }
+
 
         if (m_speedLabel) {
 
@@ -428,9 +445,10 @@ protected:
         }
     }
 
-    // =====================================================
+
+    // ==================================================
     // NOCLIP
-    // =====================================================
+    // ==================================================
 
     void onNoclip(
         CCObject*
@@ -444,9 +462,10 @@ protected:
         refresh();
     }
 
-    // =====================================================
+
+    // ==================================================
     // HITBOXES
-    // =====================================================
+    // ==================================================
 
     void onHitboxes(
         CCObject*
@@ -459,6 +478,7 @@ protected:
             "hitboxes",
             enabled
         );
+
 
         if (
             auto play =
@@ -479,12 +499,14 @@ protected:
             }
         }
 
+
         refresh();
     }
 
-    // =====================================================
+
+    // ==================================================
     // PRACTICE
-    // =====================================================
+    // ==================================================
 
     void onPractice(
         CCObject*
@@ -498,6 +520,7 @@ protected:
             enabled
         );
 
+
         if (
             auto play =
                 PlayLayer::get()
@@ -508,12 +531,14 @@ protected:
             );
         }
 
+
         refresh();
     }
 
-    // =====================================================
+
+    // ==================================================
     // RESTART
-    // =====================================================
+    // ==================================================
 
     void onRestart(
         CCObject*
@@ -541,9 +566,10 @@ protected:
         }
     }
 
-    // =====================================================
-    // SLOWER
-    // =====================================================
+
+    // ==================================================
+    // SPEED DOWN
+    // ==================================================
 
     void onSlower(
         CCObject*
@@ -566,9 +592,10 @@ protected:
         refresh();
     }
 
-    // =====================================================
-    // FASTER
-    // =====================================================
+
+    // ==================================================
+    // SPEED UP
+    // ==================================================
 
     void onFaster(
         CCObject*
@@ -591,9 +618,10 @@ protected:
         refresh();
     }
 
-    // =====================================================
+
+    // ==================================================
     // RESET SPEED
-    // =====================================================
+    // ==================================================
 
     void onNormalSpeed(
         CCObject*
@@ -609,19 +637,26 @@ protected:
         refresh();
     }
 
-    // =====================================================
-    // CLOSE MENU
-    // =====================================================
+
+    // ==================================================
+    // CLOSE MOD MENU
+    // ==================================================
 
     void onClose(
         CCObject* sender
     ) override {
 
-        g_samuelPopup = nullptr;
+        g_samuelPopup =
+            nullptr;
 
-        if (g_menuPausedGame) {
 
-            g_menuPausedGame = false;
+        if (
+            g_menuPausedGame
+        ) {
+
+            g_menuPausedGame =
+                false;
+
 
             if (
                 auto play =
@@ -636,13 +671,16 @@ protected:
                 }
             }
 
+
             applySpeed();
         }
+
 
         geode::Popup::onClose(
             sender
         );
     }
+
 
 public:
 
@@ -650,6 +688,7 @@ public:
 
         auto ret =
             new SamuelPopup();
+
 
         if (
             ret &&
@@ -661,10 +700,12 @@ public:
             return ret;
         }
 
+
         delete ret;
 
         return nullptr;
     }
+
 
     void closeMenu() {
 
@@ -674,34 +715,36 @@ public:
     }
 };
 
-// =========================================================
-// OPEN OR CLOSE SAMUEL MENU
-// =========================================================
+
+// ======================================================
+// OPEN / CLOSE MENU
+// ======================================================
 
 static void toggleSamuelMenu() {
-
-    // menu already open
 
     if (
         g_samuelPopup &&
         g_samuelPopup->getParent()
     ) {
 
-        g_samuelPopup->closeMenu();
+        g_samuelPopup
+            ->closeMenu();
 
         return;
     }
 
-    // create popup first
 
     auto popup =
         SamuelPopup::create();
 
+
     if (!popup) {
+
         return;
     }
 
-    // pause only if actually playing
+
+    // PAUSE LEVEL
 
     if (
         auto play =
@@ -722,42 +765,58 @@ static void toggleSamuelMenu() {
         }
     }
 
+
     g_samuelPopup =
         popup;
+
 
     popup->show();
 }
 
-// =========================================================
-// OFFICIAL GEODE KEYBIND
-// =========================================================
 
-$on_game(Loaded) {
+// ======================================================
+// M KEY
+// ======================================================
 
-    listenForKeybindSettingPresses(
-        "open-menu",
+class $modify(
+    SamuelKeyboardHook,
+    cocos2d::CCKeyboardDispatcher
+) {
 
-        [](
-            Keybind const&,
-            bool down,
-            bool repeat,
-            double
+    bool dispatchKeyboardMSG(
+        cocos2d::enumKeyCodes key,
+        bool down,
+        bool repeat,
+        double timestamp
+    ) {
+
+        if (
+            down &&
+            !repeat &&
+            key == cocos2d::KEY_M
         ) {
 
-            if (
-                down &&
-                !repeat
-            ) {
+            toggleSamuelMenu();
 
-                toggleSamuelMenu();
-            }
+            return true;
         }
-    );
-}
 
-// =========================================================
+
+        return
+            cocos2d::CCKeyboardDispatcher::
+            dispatchKeyboardMSG(
+                key,
+                down,
+                repeat,
+                timestamp
+            );
+    }
+};
+
+
+// ======================================================
 // SETTINGS BUTTON
-// =========================================================
+// ======================================================
 
 class $modify(
     SamuelOptionsLayer,
@@ -768,17 +827,21 @@ class $modify(
 
         OptionsLayer::customSetup();
 
+
         auto menu =
             CCMenu::create();
+
 
         menu->setPosition({
             0.f,
             0.f
         });
 
+
         menu->setID(
             "samuel-mod-menu"
         );
+
 
         auto buttonSprite =
             ButtonSprite::create(
@@ -792,6 +855,7 @@ class $modify(
                 0.f
             );
 
+
         auto button =
             CCMenuItemSpriteExtra::create(
                 buttonSprite,
@@ -802,22 +866,29 @@ class $modify(
                 )
             );
 
+
         button->setScale(
             0.65f
         );
 
+
         auto size =
             CCDirector::get()
-                ->getWinSize();
+            ->getWinSize();
+
 
         button->setPosition({
+
             size.width / 2.f + 150.f,
+
             size.height / 2.f - 112.f
         });
+
 
         menu->addChild(
             button
         );
+
 
         this
             ->m_mainLayer
@@ -827,6 +898,7 @@ class $modify(
             );
     }
 
+
     void onSamuelMods(
         CCObject*
     ) {
@@ -835,9 +907,10 @@ class $modify(
     }
 };
 
-// =========================================================
-// PLAY LAYER MODS
-// =========================================================
+
+// ======================================================
+// GAMEPLAY MODS
+// ======================================================
 
 class $modify(
     SamuelPlayLayer,
@@ -861,11 +934,9 @@ class $modify(
             return false;
         }
 
-        // apply saved speed
 
         applySpeed();
 
-        // auto practice
 
         if (
             getAutoPractice()
@@ -876,13 +947,13 @@ class $modify(
             );
         }
 
-        // saved hitboxes
 
         if (
             getHitboxes()
         ) {
 
             this->toggleDebugDraw();
+
 
             if (
                 this->m_debugDrawNode
@@ -896,12 +967,10 @@ class $modify(
             }
         }
 
+
         return true;
     }
 
-    // =====================================================
-    // NOCLIP
-    // =====================================================
 
     void destroyPlayer(
         PlayerObject* player,
@@ -915,6 +984,7 @@ class $modify(
 
             return;
         }
+
 
         PlayLayer::destroyPlayer(
             player,

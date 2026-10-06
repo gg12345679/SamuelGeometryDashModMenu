@@ -2,7 +2,9 @@
 #include <Geode/modify/OptionsLayer.hpp>
 #include <Geode/modify/PlayLayer.hpp>
 #include <Geode/ui/Popup.hpp>
-#include <Geode/cocos/robtop/keyboard_dispatcher/CCKeyboardDispatcher.h>
+#include <Geode/loader/GameEvent.hpp>
+#include <Geode/loader/SettingV3.hpp>
+
 #include <fmt/format.h>
 #include <algorithm>
 
@@ -10,253 +12,368 @@ using namespace geode::prelude;
 
 static bool g_menuPausedGame = false;
 
-static bool getNoclip() {
-    return Mod::get()->getSavedValue<bool>("noclip", false);
-}
-
-static bool getHitboxes() {
-    return Mod::get()->getSavedValue<bool>("hitboxes", false);
-}
-
-static bool getAutoPractice() {
-    return Mod::get()->getSavedValue<bool>("auto-practice", false);
-}
-
-static float getSpeed() {
-    return Mod::get()->getSavedValue<float>("speed", 1.0f);
-}
-
-static void applySpeed() {
-    if (g_menuPausedGame) {
-        return;
-    }
-
-    float speed = std::clamp(getSpeed(), 0.25f, 4.0f);
-
-    cocos2d::CCDirector::get()
-        ->getScheduler()
-        ->setTimeScale(speed);
-}
-
 class SamuelPopup;
 
 static SamuelPopup* g_samuelPopup = nullptr;
 
+// =====================================================
+// SAVED SETTINGS
+// =====================================================
+
+static bool getNoclip() {
+    return Mod::get()->getSavedValue<bool>(
+        "noclip",
+        false
+    );
+}
+
+static bool getHitboxes() {
+    return Mod::get()->getSavedValue<bool>(
+        "hitboxes",
+        false
+    );
+}
+
+static bool getAutoPractice() {
+    return Mod::get()->getSavedValue<bool>(
+        "auto-practice",
+        false
+    );
+}
+
+static float getSpeed() {
+    return Mod::get()->getSavedValue<float>(
+        "speed",
+        1.0f
+    );
+}
+
+// =====================================================
+// SPEED
+// =====================================================
+
+static void applySpeed() {
+    float speed = std::clamp(
+        getSpeed(),
+        0.25f,
+        4.0f
+    );
+
+    CCDirector::get()
+        ->getScheduler()
+        ->setTimeScale(speed);
+}
+
+// =====================================================
+// SAMUEL POPUP
+// =====================================================
+
 class SamuelPopup : public geode::Popup {
 protected:
+
     ButtonSprite* m_noclipSprite = nullptr;
+
     ButtonSprite* m_hitboxSprite = nullptr;
+
     ButtonSprite* m_practiceSprite = nullptr;
-    cocos2d::CCLabelBMFont* m_speedLabel = nullptr;
+
+    CCLabelBMFont* m_speedLabel = nullptr;
 
     bool initSamuel() {
-        if (!geode::Popup::init(390.f, 280.f)) {
+
+        if (!geode::Popup::init(
+            390.f,
+            280.f
+        )) {
             return false;
         }
 
-        this->setTitle("Samuel Mod Menu");
-
-        auto category = cocos2d::CCLabelBMFont::create(
-            "GAMEPLAY",
-            "goldFont.fnt"
+        this->setTitle(
+            "Samuel Mod Menu"
         );
 
-        category->setScale(0.55f);
+        // =================================================
+        // GAMEPLAY TITLE
+        // =================================================
+
+        auto category =
+            CCLabelBMFont::create(
+                "GAMEPLAY",
+                "goldFont.fnt"
+            );
+
+        category->setScale(
+            0.55f
+        );
 
         m_mainLayer->addChildAtPosition(
             category,
             Anchor::Top,
-            ccp(0.f, -45.f)
+            ccp(
+                0.f,
+                -45.f
+            )
         );
 
+        // =================================================
         // NOCLIP
+        // =================================================
 
-        m_noclipSprite = ButtonSprite::create(
-            "Noclip: OFF",
-            130,
-            0,
-            0.65f,
-            true,
-            "goldFont.fnt",
-            "GJ_button_01.png",
-            0.f
-        );
+        m_noclipSprite =
+            ButtonSprite::create(
+                "Noclip: OFF",
+                130,
+                0,
+                0.65f,
+                true,
+                "goldFont.fnt",
+                "GJ_button_01.png",
+                0.f
+            );
 
-        auto noclipButton = CCMenuItemSpriteExtra::create(
-            m_noclipSprite,
-            this,
-            menu_selector(SamuelPopup::onNoclip)
-        );
+        auto noclipButton =
+            CCMenuItemSpriteExtra::create(
+                m_noclipSprite,
+                this,
+                menu_selector(
+                    SamuelPopup::onNoclip
+                )
+            );
 
         m_buttonMenu->addChildAtPosition(
             noclipButton,
             Anchor::Center,
-            ccp(-90.f, 45.f)
+            ccp(
+                -90.f,
+                45.f
+            )
         );
 
+        // =================================================
         // HITBOXES
+        // =================================================
 
-        m_hitboxSprite = ButtonSprite::create(
-            "Hitboxes: OFF",
-            130,
-            0,
-            0.65f,
-            true,
-            "goldFont.fnt",
-            "GJ_button_01.png",
-            0.f
-        );
+        m_hitboxSprite =
+            ButtonSprite::create(
+                "Hitboxes: OFF",
+                130,
+                0,
+                0.65f,
+                true,
+                "goldFont.fnt",
+                "GJ_button_01.png",
+                0.f
+            );
 
-        auto hitboxButton = CCMenuItemSpriteExtra::create(
-            m_hitboxSprite,
-            this,
-            menu_selector(SamuelPopup::onHitboxes)
-        );
+        auto hitboxButton =
+            CCMenuItemSpriteExtra::create(
+                m_hitboxSprite,
+                this,
+                menu_selector(
+                    SamuelPopup::onHitboxes
+                )
+            );
 
         m_buttonMenu->addChildAtPosition(
             hitboxButton,
             Anchor::Center,
-            ccp(90.f, 45.f)
+            ccp(
+                90.f,
+                45.f
+            )
         );
 
+        // =================================================
         // AUTO PRACTICE
+        // =================================================
 
-        m_practiceSprite = ButtonSprite::create(
-            "Auto Practice: OFF",
-            130,
-            0,
-            0.55f,
-            true,
-            "goldFont.fnt",
-            "GJ_button_01.png",
-            0.f
-        );
+        m_practiceSprite =
+            ButtonSprite::create(
+                "Auto Practice: OFF",
+                130,
+                0,
+                0.55f,
+                true,
+                "goldFont.fnt",
+                "GJ_button_01.png",
+                0.f
+            );
 
-        auto practiceButton = CCMenuItemSpriteExtra::create(
-            m_practiceSprite,
-            this,
-            menu_selector(SamuelPopup::onPractice)
-        );
+        auto practiceButton =
+            CCMenuItemSpriteExtra::create(
+                m_practiceSprite,
+                this,
+                menu_selector(
+                    SamuelPopup::onPractice
+                )
+            );
 
         m_buttonMenu->addChildAtPosition(
             practiceButton,
             Anchor::Center,
-            ccp(-90.f, -15.f)
+            ccp(
+                -90.f,
+                -15.f
+            )
         );
 
-        // RESTART LEVEL
+        // =================================================
+        // RESTART
+        // =================================================
 
-        auto restartSprite = ButtonSprite::create(
-            "Restart Level",
-            130,
-            0,
-            0.65f,
-            true,
-            "goldFont.fnt",
-            "GJ_button_01.png",
-            0.f
-        );
+        auto restartSprite =
+            ButtonSprite::create(
+                "Restart Level",
+                130,
+                0,
+                0.65f,
+                true,
+                "goldFont.fnt",
+                "GJ_button_01.png",
+                0.f
+            );
 
-        auto restartButton = CCMenuItemSpriteExtra::create(
-            restartSprite,
-            this,
-            menu_selector(SamuelPopup::onRestart)
-        );
+        auto restartButton =
+            CCMenuItemSpriteExtra::create(
+                restartSprite,
+                this,
+                menu_selector(
+                    SamuelPopup::onRestart
+                )
+            );
 
         m_buttonMenu->addChildAtPosition(
             restartButton,
             Anchor::Center,
-            ccp(90.f, -15.f)
+            ccp(
+                90.f,
+                -15.f
+            )
         );
 
-        // SPEED -
+        // =================================================
+        // SPEED MINUS
+        // =================================================
 
-        auto slowerSprite = ButtonSprite::create(
-            "-",
-            45,
-            0,
-            0.8f,
-            true,
-            "bigFont.fnt",
-            "GJ_button_01.png",
-            0.f
-        );
+        auto slowerSprite =
+            ButtonSprite::create(
+                "-",
+                45,
+                0,
+                0.8f,
+                true,
+                "bigFont.fnt",
+                "GJ_button_01.png",
+                0.f
+            );
 
-        auto slowerButton = CCMenuItemSpriteExtra::create(
-            slowerSprite,
-            this,
-            menu_selector(SamuelPopup::onSlower)
-        );
+        auto slowerButton =
+            CCMenuItemSpriteExtra::create(
+                slowerSprite,
+                this,
+                menu_selector(
+                    SamuelPopup::onSlower
+                )
+            );
 
         m_buttonMenu->addChildAtPosition(
             slowerButton,
             Anchor::Bottom,
-            ccp(-90.f, 45.f)
+            ccp(
+                -90.f,
+                45.f
+            )
         );
 
+        // =================================================
         // SPEED LABEL
+        // =================================================
 
-        m_speedLabel = cocos2d::CCLabelBMFont::create(
-            "",
-            "bigFont.fnt"
+        m_speedLabel =
+            CCLabelBMFont::create(
+                "",
+                "bigFont.fnt"
+            );
+
+        m_speedLabel->setScale(
+            0.55f
         );
-
-        m_speedLabel->setScale(0.55f);
 
         m_mainLayer->addChildAtPosition(
             m_speedLabel,
             Anchor::Bottom,
-            ccp(0.f, 47.f)
+            ccp(
+                0.f,
+                47.f
+            )
         );
 
-        // SPEED +
+        // =================================================
+        // SPEED PLUS
+        // =================================================
 
-        auto fasterSprite = ButtonSprite::create(
-            "+",
-            45,
-            0,
-            0.8f,
-            true,
-            "bigFont.fnt",
-            "GJ_button_01.png",
-            0.f
-        );
+        auto fasterSprite =
+            ButtonSprite::create(
+                "+",
+                45,
+                0,
+                0.8f,
+                true,
+                "bigFont.fnt",
+                "GJ_button_01.png",
+                0.f
+            );
 
-        auto fasterButton = CCMenuItemSpriteExtra::create(
-            fasterSprite,
-            this,
-            menu_selector(SamuelPopup::onFaster)
-        );
+        auto fasterButton =
+            CCMenuItemSpriteExtra::create(
+                fasterSprite,
+                this,
+                menu_selector(
+                    SamuelPopup::onFaster
+                )
+            );
 
         m_buttonMenu->addChildAtPosition(
             fasterButton,
             Anchor::Bottom,
-            ccp(90.f, 45.f)
+            ccp(
+                90.f,
+                45.f
+            )
         );
 
+        // =================================================
         // RESET SPEED
+        // =================================================
 
-        auto resetSprite = ButtonSprite::create(
-            "Reset 1x",
-            100,
-            0,
-            0.6f,
-            true,
-            "goldFont.fnt",
-            "GJ_button_01.png",
-            0.f
-        );
+        auto resetSprite =
+            ButtonSprite::create(
+                "Reset 1x",
+                100,
+                0,
+                0.6f,
+                true,
+                "goldFont.fnt",
+                "GJ_button_01.png",
+                0.f
+            );
 
-        auto resetButton = CCMenuItemSpriteExtra::create(
-            resetSprite,
-            this,
-            menu_selector(SamuelPopup::onNormalSpeed)
-        );
+        auto resetButton =
+            CCMenuItemSpriteExtra::create(
+                resetSprite,
+                this,
+                menu_selector(
+                    SamuelPopup::onNormalSpeed
+                )
+            );
 
         m_buttonMenu->addChildAtPosition(
             resetButton,
             Anchor::Bottom,
-            ccp(0.f, 16.f)
+            ccp(
+                0.f,
+                16.f
+            )
         );
 
         refresh();
@@ -264,8 +381,14 @@ protected:
         return true;
     }
 
+    // =====================================================
+    // REFRESH BUTTON TEXT
+    // =====================================================
+
     void refresh() {
+
         if (m_noclipSprite) {
+
             m_noclipSprite->setString(
                 getNoclip()
                     ? "Noclip: ON"
@@ -274,6 +397,7 @@ protected:
         }
 
         if (m_hitboxSprite) {
+
             m_hitboxSprite->setString(
                 getHitboxes()
                     ? "Hitboxes: ON"
@@ -282,6 +406,7 @@ protected:
         }
 
         if (m_practiceSprite) {
+
             m_practiceSprite->setString(
                 getAutoPractice()
                     ? "Auto Practice: ON"
@@ -290,16 +415,27 @@ protected:
         }
 
         if (m_speedLabel) {
-            auto text = fmt::format(
-                "Speed {:.2f}x",
-                getSpeed()
-            );
 
-            m_speedLabel->setString(text.c_str());
+            auto text =
+                fmt::format(
+                    "Speed {:.2f}x",
+                    getSpeed()
+                );
+
+            m_speedLabel->setString(
+                text.c_str()
+            );
         }
     }
 
-    void onNoclip(cocos2d::CCObject*) {
+    // =====================================================
+    // NOCLIP
+    // =====================================================
+
+    void onNoclip(
+        CCObject*
+    ) {
+
         Mod::get()->setSavedValue(
             "noclip",
             !getNoclip()
@@ -308,47 +444,95 @@ protected:
         refresh();
     }
 
-    void onHitboxes(cocos2d::CCObject*) {
-        bool enabled = !getHitboxes();
+    // =====================================================
+    // HITBOXES
+    // =====================================================
+
+    void onHitboxes(
+        CCObject*
+    ) {
+
+        bool enabled =
+            !getHitboxes();
 
         Mod::get()->setSavedValue(
             "hitboxes",
             enabled
         );
 
-        if (auto play = PlayLayer::get()) {
+        if (
+            auto play =
+                PlayLayer::get()
+        ) {
+
             play->toggleDebugDraw();
 
-            if (play->m_debugDrawNode) {
-                play->m_debugDrawNode->setVisible(enabled);
+            if (
+                play->m_debugDrawNode
+            ) {
+
+                play
+                    ->m_debugDrawNode
+                    ->setVisible(
+                        enabled
+                    );
             }
         }
 
         refresh();
     }
 
-    void onPractice(cocos2d::CCObject*) {
-        bool enabled = !getAutoPractice();
+    // =====================================================
+    // PRACTICE
+    // =====================================================
+
+    void onPractice(
+        CCObject*
+    ) {
+
+        bool enabled =
+            !getAutoPractice();
 
         Mod::get()->setSavedValue(
             "auto-practice",
             enabled
         );
 
-        if (auto play = PlayLayer::get()) {
-            play->togglePracticeMode(enabled);
+        if (
+            auto play =
+                PlayLayer::get()
+        ) {
+
+            play->togglePracticeMode(
+                enabled
+            );
         }
 
         refresh();
     }
 
-    void onRestart(cocos2d::CCObject*) {
-        if (auto play = PlayLayer::get()) {
-            this->onClose(nullptr);
+    // =====================================================
+    // RESTART
+    // =====================================================
+
+    void onRestart(
+        CCObject*
+    ) {
+
+        if (
+            auto play =
+                PlayLayer::get()
+        ) {
+
+            this->onClose(
+                nullptr
+            );
 
             play->resetLevel();
         }
+
         else {
+
             FLAlertLayer::create(
                 "Samuel Mod Menu",
                 "Start a level first.",
@@ -357,12 +541,20 @@ protected:
         }
     }
 
-    void onSlower(cocos2d::CCObject*) {
-        float speed = std::clamp(
-            getSpeed() - 0.25f,
-            0.25f,
-            4.0f
-        );
+    // =====================================================
+    // SLOWER
+    // =====================================================
+
+    void onSlower(
+        CCObject*
+    ) {
+
+        float speed =
+            std::clamp(
+                getSpeed() - 0.25f,
+                0.25f,
+                4.0f
+            );
 
         Mod::get()->setSavedValue(
             "speed",
@@ -370,15 +562,24 @@ protected:
         );
 
         applySpeed();
+
         refresh();
     }
 
-    void onFaster(cocos2d::CCObject*) {
-        float speed = std::clamp(
-            getSpeed() + 0.25f,
-            0.25f,
-            4.0f
-        );
+    // =====================================================
+    // FASTER
+    // =====================================================
+
+    void onFaster(
+        CCObject*
+    ) {
+
+        float speed =
+            std::clamp(
+                getSpeed() + 0.25f,
+                0.25f,
+                4.0f
+            );
 
         Mod::get()->setSavedValue(
             "speed",
@@ -386,36 +587,77 @@ protected:
         );
 
         applySpeed();
+
         refresh();
     }
 
-    void onNormalSpeed(cocos2d::CCObject*) {
+    // =====================================================
+    // RESET SPEED
+    // =====================================================
+
+    void onNormalSpeed(
+        CCObject*
+    ) {
+
         Mod::get()->setSavedValue(
             "speed",
             1.0f
         );
 
         applySpeed();
+
         refresh();
     }
 
-    void onClose(cocos2d::CCObject* sender) override {
+    // =====================================================
+    // CLOSE MENU
+    // =====================================================
+
+    void onClose(
+        CCObject* sender
+    ) override {
+
         g_samuelPopup = nullptr;
 
         if (g_menuPausedGame) {
+
             g_menuPausedGame = false;
+
+            if (
+                auto play =
+                    PlayLayer::get()
+            ) {
+
+                if (
+                    play->m_isPaused
+                ) {
+
+                    play->resume();
+                }
+            }
+
             applySpeed();
         }
 
-        geode::Popup::onClose(sender);
+        geode::Popup::onClose(
+            sender
+        );
     }
 
 public:
-    static SamuelPopup* create() {
-        auto ret = new SamuelPopup();
 
-        if (ret && ret->initSamuel()) {
+    static SamuelPopup* create() {
+
+        auto ret =
+            new SamuelPopup();
+
+        if (
+            ret &&
+            ret->initSamuel()
+        ) {
+
             ret->autorelease();
+
             return ret;
         }
 
@@ -424,70 +666,110 @@ public:
         return nullptr;
     }
 
-    void closeFromHotkey() {
-        this->onClose(nullptr);
+    void closeMenu() {
+
+        this->onClose(
+            nullptr
+        );
     }
 };
 
-static void openSamuelMenu() {
+// =========================================================
+// OPEN OR CLOSE SAMUEL MENU
+// =========================================================
+
+static void toggleSamuelMenu() {
+
+    // menu already open
+
     if (
         g_samuelPopup &&
         g_samuelPopup->getParent()
     ) {
-        g_samuelPopup->closeFromHotkey();
+
+        g_samuelPopup->closeMenu();
+
         return;
     }
 
-    auto popup = SamuelPopup::create();
+    // create popup first
+
+    auto popup =
+        SamuelPopup::create();
 
     if (!popup) {
         return;
     }
 
-    g_samuelPopup = popup;
+    // pause only if actually playing
+
+    if (
+        auto play =
+            PlayLayer::get()
+    ) {
+
+        if (
+            !play->m_isPaused &&
+            play->canPauseGame()
+        ) {
+
+            play->pauseGame(
+                false
+            );
+
+            g_menuPausedGame =
+                true;
+        }
+    }
+
+    g_samuelPopup =
+        popup;
 
     popup->show();
-
-    if (auto play = PlayLayer::get()) {
-        if (!play->m_isPaused) {
-            g_menuPausedGame = true;
-
-            cocos2d::CCDirector::get()
-                ->getScheduler()
-                ->setTimeScale(0.f);
-        }
-    }
 }
 
-class SamuelKeyboard : public cocos2d::CCKeyboardDelegate {
-public:
-    void keyDown(
-        cocos2d::enumKeyCodes key,
-        double
-    ) override {
-        if (key == cocos2d::KEY_M) {
-            openSamuelMenu();
+// =========================================================
+// OFFICIAL GEODE KEYBIND
+// =========================================================
+
+$on_game(Loaded) {
+
+    listenForKeybindSettingPresses(
+        "open-menu",
+
+        [](
+            Keybind const&,
+            bool down,
+            bool repeat,
+            double
+        ) {
+
+            if (
+                down &&
+                !repeat
+            ) {
+
+                toggleSamuelMenu();
+            }
         }
-    }
-};
-
-static SamuelKeyboard* g_keyboard = nullptr;
-
-$execute {
-    g_keyboard = new SamuelKeyboard();
-
-    cocos2d::CCKeyboardDispatcher::get()
-        ->forceAddDelegate(g_keyboard);
+    );
 }
+
+// =========================================================
+// SETTINGS BUTTON
+// =========================================================
 
 class $modify(
     SamuelOptionsLayer,
     OptionsLayer
 ) {
+
     void customSetup() {
+
         OptionsLayer::customSetup();
 
-        auto menu = cocos2d::CCMenu::create();
+        auto menu =
+            CCMenu::create();
 
         menu->setPosition({
             0.f,
@@ -498,58 +780,76 @@ class $modify(
             "samuel-mod-menu"
         );
 
-        auto buttonSprite = ButtonSprite::create(
-            "SAMUEL MODS",
-            105,
-            0,
-            0.7f,
-            true,
-            "goldFont.fnt",
-            "GJ_button_01.png",
-            0.f
-        );
+        auto buttonSprite =
+            ButtonSprite::create(
+                "SAMUEL MODS",
+                105,
+                0,
+                0.7f,
+                true,
+                "goldFont.fnt",
+                "GJ_button_01.png",
+                0.f
+            );
 
-        auto button = CCMenuItemSpriteExtra::create(
-            buttonSprite,
-            this,
-            menu_selector(
-                SamuelOptionsLayer::onSamuelMods
-            )
-        );
+        auto button =
+            CCMenuItemSpriteExtra::create(
+                buttonSprite,
+                this,
+                menu_selector(
+                    SamuelOptionsLayer::
+                    onSamuelMods
+                )
+            );
 
-        button->setScale(0.65f);
+        button->setScale(
+            0.65f
+        );
 
         auto size =
-            cocos2d::CCDirector::get()
-            ->getWinSize();
+            CCDirector::get()
+                ->getWinSize();
 
         button->setPosition({
             size.width / 2.f + 150.f,
             size.height / 2.f - 112.f
         });
 
-        menu->addChild(button);
-
-        this->m_mainLayer->addChild(
-            menu,
-            100
+        menu->addChild(
+            button
         );
+
+        this
+            ->m_mainLayer
+            ->addChild(
+                menu,
+                100
+            );
     }
 
-    void onSamuelMods(cocos2d::CCObject*) {
-        openSamuelMenu();
+    void onSamuelMods(
+        CCObject*
+    ) {
+
+        toggleSamuelMenu();
     }
 };
+
+// =========================================================
+// PLAY LAYER MODS
+// =========================================================
 
 class $modify(
     SamuelPlayLayer,
     PlayLayer
 ) {
+
     bool init(
         GJGameLevel* level,
         bool useReplay,
         bool dontCreateObjects
     ) {
+
         if (
             !PlayLayer::init(
                 level,
@@ -557,34 +857,62 @@ class $modify(
                 dontCreateObjects
             )
         ) {
+
             return false;
         }
 
+        // apply saved speed
+
         applySpeed();
 
-        if (getAutoPractice()) {
-            this->togglePracticeMode(true);
+        // auto practice
+
+        if (
+            getAutoPractice()
+        ) {
+
+            this->togglePracticeMode(
+                true
+            );
         }
 
-        if (getHitboxes()) {
+        // saved hitboxes
+
+        if (
+            getHitboxes()
+        ) {
+
             this->toggleDebugDraw();
 
-            if (this->m_debugDrawNode) {
-                this->m_debugDrawNode->setVisible(true);
+            if (
+                this->m_debugDrawNode
+            ) {
+
+                this
+                    ->m_debugDrawNode
+                    ->setVisible(
+                        true
+                    );
             }
         }
 
         return true;
     }
 
+    // =====================================================
+    // NOCLIP
+    // =====================================================
+
     void destroyPlayer(
         PlayerObject* player,
         GameObject* object
     ) {
+
         if (
             getNoclip() &&
             !m_levelEndAnimationStarted
         ) {
+
             return;
         }
 

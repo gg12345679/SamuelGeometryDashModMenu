@@ -12,13 +12,12 @@ using namespace geode::prelude;
 static bool g_menuPausedGame = false;
 
 class SamuelPopup;
-
 static SamuelPopup* g_samuelPopup = nullptr;
 
 
-// ======================================================
-// SAVED OPTIONS
-// ======================================================
+// =====================================================
+// SETTINGS
+// =====================================================
 
 static bool getNoclip() {
     return Mod::get()->getSavedValue<bool>(
@@ -41,6 +40,20 @@ static bool getAutoPractice() {
     );
 }
 
+static bool getAutoRetry() {
+    return Mod::get()->getSavedValue<bool>(
+        "auto-retry",
+        false
+    );
+}
+
+static bool getTrailEnabled() {
+    return Mod::get()->getSavedValue<bool>(
+        "trail-enabled",
+        true
+    );
+}
+
 static float getSpeed() {
     return Mod::get()->getSavedValue<float>(
         "speed",
@@ -49,9 +62,9 @@ static float getSpeed() {
 }
 
 
-// ======================================================
+// =====================================================
 // SPEED
-// ======================================================
+// =====================================================
 
 static void applySpeed() {
 
@@ -71,26 +84,146 @@ static void applySpeed() {
 }
 
 
-// ======================================================
-// MOD MENU
-// ======================================================
+// =====================================================
+// TRAILS
+// =====================================================
+
+static void setPlayerTrail(
+    PlayerObject* player,
+    bool visible
+) {
+
+    if (!player) {
+        return;
+    }
+
+    if (player->m_regularTrail) {
+
+        player
+            ->m_regularTrail
+            ->setVisible(visible);
+    }
+
+    if (player->m_waveTrail) {
+
+        player
+            ->m_waveTrail
+            ->setVisible(visible);
+    }
+}
+
+static void applyTrails(
+    PlayLayer* play
+) {
+
+    if (!play) {
+        return;
+    }
+
+    bool visible =
+        getTrailEnabled();
+
+    setPlayerTrail(
+        play->m_player1,
+        visible
+    );
+
+    setPlayerTrail(
+        play->m_player2,
+        visible
+    );
+}
+
+
+// =====================================================
+// SAMUEL POPUP
+// =====================================================
 
 class SamuelPopup : public geode::Popup {
 
 protected:
 
+    CCMenu* m_gameplayMenu = nullptr;
+
+    CCMenu* m_toolsMenu = nullptr;
+
     ButtonSprite* m_noclipSprite = nullptr;
+
     ButtonSprite* m_hitboxSprite = nullptr;
+
     ButtonSprite* m_practiceSprite = nullptr;
+
+    ButtonSprite* m_retrySprite = nullptr;
+
+    ButtonSprite* m_trailSprite = nullptr;
+
     CCLabelBMFont* m_speedLabel = nullptr;
 
 
+    // =================================================
+    // BUTTON MAKER
+    // =================================================
+
+    CCMenuItemSpriteExtra* addButton(
+        CCMenu* menu,
+        char const* text,
+        float width,
+        float fontScale,
+        cocos2d::SEL_MenuHandler callback,
+        cocos2d::CCPoint position,
+        ButtonSprite** saveSprite = nullptr
+    ) {
+
+        auto sprite =
+            ButtonSprite::create(
+                text,
+                width,
+                0,
+                fontScale,
+                true,
+                "goldFont.fnt",
+                "GJ_button_01.png",
+                0.f
+            );
+
+        if (saveSprite) {
+
+            *saveSprite =
+                sprite;
+        }
+
+        auto button =
+            CCMenuItemSpriteExtra::create(
+                sprite,
+                this,
+                callback
+            );
+
+        button->setPosition(
+            position
+        );
+
+        menu->addChild(
+            button
+        );
+
+        return button;
+    }
+
+
+    // =================================================
+    // CREATE MENU
+    // =================================================
+
     bool initSamuel() {
 
-        if (!geode::Popup::init(
-            390.f,
-            280.f
-        )) {
+        if (
+            !geode::Popup::init(
+                430.f,
+                305.f
+            )
+        ) {
+
             return false;
         }
 
@@ -99,192 +232,320 @@ protected:
         );
 
 
-        auto category =
-            CCLabelBMFont::create(
+        auto size =
+            m_mainLayer
+                ->getContentSize();
+
+        float cx =
+            size.width / 2.f;
+
+
+        // =================================================
+        // TAB MENU
+        // =================================================
+
+        auto tabMenu =
+            CCMenu::create();
+
+        tabMenu->setPosition({
+            0.f,
+            0.f
+        });
+
+        m_mainLayer->addChild(
+            tabMenu,
+            20
+        );
+
+
+        auto gameplayTab =
+            addButton(
+                tabMenu,
                 "GAMEPLAY",
+                120.f,
+                0.6f,
+                menu_selector(
+                    SamuelPopup::
+                    onGameplayTab
+                ),
+                {
+                    cx - 70.f,
+                    size.height - 52.f
+                }
+            );
+
+        gameplayTab->setScale(
+            0.85f
+        );
+
+
+        auto toolsTab =
+            addButton(
+                tabMenu,
+                "TOOLS",
+                120.f,
+                0.6f,
+                menu_selector(
+                    SamuelPopup::
+                    onToolsTab
+                ),
+                {
+                    cx + 70.f,
+                    size.height - 52.f
+                }
+            );
+
+        toolsTab->setScale(
+            0.85f
+        );
+
+
+        // =================================================
+        // GAMEPLAY TAB
+        // =================================================
+
+        m_gameplayMenu =
+            CCMenu::create();
+
+        m_gameplayMenu->setPosition({
+            0.f,
+            0.f
+        });
+
+        m_mainLayer->addChild(
+            m_gameplayMenu,
+            10
+        );
+
+
+        addButton(
+            m_gameplayMenu,
+            "Noclip: OFF",
+            145.f,
+            0.58f,
+            menu_selector(
+                SamuelPopup::onNoclip
+            ),
+            {
+                cx - 92.f,
+                188.f
+            },
+            &m_noclipSprite
+        );
+
+
+        addButton(
+            m_gameplayMenu,
+            "Hitboxes: OFF",
+            145.f,
+            0.58f,
+            menu_selector(
+                SamuelPopup::onHitboxes
+            ),
+            {
+                cx + 92.f,
+                188.f
+            },
+            &m_hitboxSprite
+        );
+
+
+        addButton(
+            m_gameplayMenu,
+            "Auto Practice: OFF",
+            145.f,
+            0.52f,
+            menu_selector(
+                SamuelPopup::onPractice
+            ),
+            {
+                cx - 92.f,
+                132.f
+            },
+            &m_practiceSprite
+        );
+
+
+        addButton(
+            m_gameplayMenu,
+            "Auto Retry: OFF",
+            145.f,
+            0.55f,
+            menu_selector(
+                SamuelPopup::onAutoRetry
+            ),
+            {
+                cx + 92.f,
+                132.f
+            },
+            &m_retrySprite
+        );
+
+
+        addButton(
+            m_gameplayMenu,
+            "Trail: ON",
+            145.f,
+            0.58f,
+            menu_selector(
+                SamuelPopup::onTrail
+            ),
+            {
+                cx - 92.f,
+                76.f
+            },
+            &m_trailSprite
+        );
+
+
+        addButton(
+            m_gameplayMenu,
+            "Restart Level",
+            145.f,
+            0.58f,
+            menu_selector(
+                SamuelPopup::onRestart
+            ),
+            {
+                cx + 92.f,
+                76.f
+            }
+        );
+
+
+        // =================================================
+        // TOOLS TAB
+        // =================================================
+
+        m_toolsMenu =
+            CCMenu::create();
+
+        m_toolsMenu->setPosition({
+            0.f,
+            0.f
+        });
+
+        m_mainLayer->addChild(
+            m_toolsMenu,
+            10
+        );
+
+
+        addButton(
+            m_toolsMenu,
+            "Place Checkpoint",
+            150.f,
+            0.54f,
+            menu_selector(
+                SamuelPopup::
+                onPlaceCheckpoint
+            ),
+            {
+                cx - 92.f,
+                184.f
+            }
+        );
+
+
+        addButton(
+            m_toolsMenu,
+            "Remove Checkpoint",
+            150.f,
+            0.50f,
+            menu_selector(
+                SamuelPopup::
+                onRemoveCheckpoint
+            ),
+            {
+                cx + 92.f,
+                184.f
+            }
+        );
+
+
+        auto speedTitle =
+            CCLabelBMFont::create(
+                "SPEED PRESETS",
                 "goldFont.fnt"
             );
 
-        category->setScale(
-            0.55f
+        speedTitle->setScale(
+            0.48f
         );
 
-        m_mainLayer->addChildAtPosition(
-            category,
-            Anchor::Top,
-            ccp(
-                0.f,
-                -45.f
-            )
-        );
+        speedTitle->setPosition({
+            cx,
+            139.f
+        });
 
-
-        // NOCLIP
-
-        m_noclipSprite =
-            ButtonSprite::create(
-                "Noclip: OFF",
-                130,
-                0,
-                0.65f,
-                true,
-                "goldFont.fnt",
-                "GJ_button_01.png",
-                0.f
-            );
-
-        auto noclipButton =
-            CCMenuItemSpriteExtra::create(
-                m_noclipSprite,
-                this,
-                menu_selector(
-                    SamuelPopup::onNoclip
-                )
-            );
-
-        m_buttonMenu->addChildAtPosition(
-            noclipButton,
-            Anchor::Center,
-            ccp(
-                -90.f,
-                45.f
-            )
+        m_toolsMenu->addChild(
+            speedTitle
         );
 
 
-        // HITBOXES
+        // =================================================
+        // SPEED PRESETS
+        // =================================================
 
-        m_hitboxSprite =
-            ButtonSprite::create(
-                "Hitboxes: OFF",
-                130,
-                0,
-                0.65f,
-                true,
-                "goldFont.fnt",
-                "GJ_button_01.png",
-                0.f
-            );
-
-        auto hitboxButton =
-            CCMenuItemSpriteExtra::create(
-                m_hitboxSprite,
-                this,
-                menu_selector(
-                    SamuelPopup::onHitboxes
-                )
-            );
-
-        m_buttonMenu->addChildAtPosition(
-            hitboxButton,
-            Anchor::Center,
-            ccp(
-                90.f,
-                45.f
-            )
+        addButton(
+            m_toolsMenu,
+            "0.5x",
+            75.f,
+            0.6f,
+            menu_selector(
+                SamuelPopup::onSpeed05
+            ),
+            {
+                cx - 135.f,
+                99.f
+            }
         );
 
 
-        // AUTO PRACTICE
-
-        m_practiceSprite =
-            ButtonSprite::create(
-                "Auto Practice: OFF",
-                130,
-                0,
-                0.55f,
-                true,
-                "goldFont.fnt",
-                "GJ_button_01.png",
-                0.f
-            );
-
-        auto practiceButton =
-            CCMenuItemSpriteExtra::create(
-                m_practiceSprite,
-                this,
-                menu_selector(
-                    SamuelPopup::onPractice
-                )
-            );
-
-        m_buttonMenu->addChildAtPosition(
-            practiceButton,
-            Anchor::Center,
-            ccp(
-                -90.f,
-                -15.f
-            )
+        addButton(
+            m_toolsMenu,
+            "1x",
+            75.f,
+            0.6f,
+            menu_selector(
+                SamuelPopup::onSpeed1
+            ),
+            {
+                cx - 45.f,
+                99.f
+            }
         );
 
 
-        // RESTART
-
-        auto restartSprite =
-            ButtonSprite::create(
-                "Restart Level",
-                130,
-                0,
-                0.65f,
-                true,
-                "goldFont.fnt",
-                "GJ_button_01.png",
-                0.f
-            );
-
-        auto restartButton =
-            CCMenuItemSpriteExtra::create(
-                restartSprite,
-                this,
-                menu_selector(
-                    SamuelPopup::onRestart
-                )
-            );
-
-        m_buttonMenu->addChildAtPosition(
-            restartButton,
-            Anchor::Center,
-            ccp(
-                90.f,
-                -15.f
-            )
+        addButton(
+            m_toolsMenu,
+            "2x",
+            75.f,
+            0.6f,
+            menu_selector(
+                SamuelPopup::onSpeed2
+            ),
+            {
+                cx + 45.f,
+                99.f
+            }
         );
 
 
-        // SPEED -
-
-        auto slowerSprite =
-            ButtonSprite::create(
-                "-",
-                45,
-                0,
-                0.8f,
-                true,
-                "bigFont.fnt",
-                "GJ_button_01.png",
-                0.f
-            );
-
-        auto slowerButton =
-            CCMenuItemSpriteExtra::create(
-                slowerSprite,
-                this,
-                menu_selector(
-                    SamuelPopup::onSlower
-                )
-            );
-
-        m_buttonMenu->addChildAtPosition(
-            slowerButton,
-            Anchor::Bottom,
-            ccp(
-                -90.f,
-                45.f
-            )
+        addButton(
+            m_toolsMenu,
+            "4x",
+            75.f,
+            0.6f,
+            menu_selector(
+                SamuelPopup::onSpeed4
+            ),
+            {
+                cx + 135.f,
+                99.f
+            }
         );
 
-
-        // SPEED TEXT
 
         m_speedLabel =
             CCLabelBMFont::create(
@@ -293,90 +554,82 @@ protected:
             );
 
         m_speedLabel->setScale(
-            0.55f
+            0.52f
         );
 
-        m_mainLayer->addChildAtPosition(
-            m_speedLabel,
-            Anchor::Bottom,
-            ccp(
-                0.f,
-                47.f
-            )
-        );
+        m_speedLabel->setPosition({
+            cx,
+            53.f
+        });
 
-
-        // SPEED +
-
-        auto fasterSprite =
-            ButtonSprite::create(
-                "+",
-                45,
-                0,
-                0.8f,
-                true,
-                "bigFont.fnt",
-                "GJ_button_01.png",
-                0.f
-            );
-
-        auto fasterButton =
-            CCMenuItemSpriteExtra::create(
-                fasterSprite,
-                this,
-                menu_selector(
-                    SamuelPopup::onFaster
-                )
-            );
-
-        m_buttonMenu->addChildAtPosition(
-            fasterButton,
-            Anchor::Bottom,
-            ccp(
-                90.f,
-                45.f
-            )
+        m_toolsMenu->addChild(
+            m_speedLabel
         );
 
 
-        // RESET SPEED
-
-        auto resetSprite =
-            ButtonSprite::create(
-                "Reset 1x",
-                100,
-                0,
-                0.6f,
-                true,
-                "goldFont.fnt",
-                "GJ_button_01.png",
-                0.f
-            );
-
-        auto resetButton =
-            CCMenuItemSpriteExtra::create(
-                resetSprite,
-                this,
-                menu_selector(
-                    SamuelPopup::onNormalSpeed
-                )
-            );
-
-        m_buttonMenu->addChildAtPosition(
-            resetButton,
-            Anchor::Bottom,
-            ccp(
-                0.f,
-                16.f
-            )
-        );
-
+        showGameplay();
 
         refresh();
 
         return true;
     }
 
+
+    // =================================================
+    // TABS
+    // =================================================
+
+    void showGameplay() {
+
+        if (m_gameplayMenu) {
+
+            m_gameplayMenu
+                ->setVisible(true);
+        }
+
+        if (m_toolsMenu) {
+
+            m_toolsMenu
+                ->setVisible(false);
+        }
+    }
+
+
+    void showTools() {
+
+        if (m_gameplayMenu) {
+
+            m_gameplayMenu
+                ->setVisible(false);
+        }
+
+        if (m_toolsMenu) {
+
+            m_toolsMenu
+                ->setVisible(true);
+        }
+    }
+
+
+    void onGameplayTab(
+        CCObject*
+    ) {
+
+        showGameplay();
+    }
+
+
+    void onToolsTab(
+        CCObject*
+    ) {
+
+        showTools();
+    }
+
+
+    // =================================================
+    // REFRESH TEXT
+    // =================================================
 
     void refresh() {
 
@@ -410,11 +663,31 @@ protected:
         }
 
 
+        if (m_retrySprite) {
+
+            m_retrySprite->setString(
+                getAutoRetry()
+                    ? "Auto Retry: ON"
+                    : "Auto Retry: OFF"
+            );
+        }
+
+
+        if (m_trailSprite) {
+
+            m_trailSprite->setString(
+                getTrailEnabled()
+                    ? "Trail: ON"
+                    : "Trail: OFF"
+            );
+        }
+
+
         if (m_speedLabel) {
 
             auto text =
                 fmt::format(
-                    "Speed {:.2f}x",
+                    "Current Speed {:.2f}x",
                     getSpeed()
                 );
 
@@ -424,6 +697,10 @@ protected:
         }
     }
 
+
+    // =================================================
+    // NOCLIP
+    // =================================================
 
     void onNoclip(
         CCObject*
@@ -437,6 +714,10 @@ protected:
         refresh();
     }
 
+
+    // =================================================
+    // HITBOXES
+    // =================================================
 
     void onHitboxes(
         CCObject*
@@ -475,6 +756,10 @@ protected:
     }
 
 
+    // =================================================
+    // PRACTICE
+    // =================================================
+
     void onPractice(
         CCObject*
     ) {
@@ -503,6 +788,48 @@ protected:
     }
 
 
+    // =================================================
+    // AUTO RETRY
+    // =================================================
+
+    void onAutoRetry(
+        CCObject*
+    ) {
+
+        Mod::get()->setSavedValue(
+            "auto-retry",
+            !getAutoRetry()
+        );
+
+        refresh();
+    }
+
+
+    // =================================================
+    // TRAIL
+    // =================================================
+
+    void onTrail(
+        CCObject*
+    ) {
+
+        Mod::get()->setSavedValue(
+            "trail-enabled",
+            !getTrailEnabled()
+        );
+
+        applyTrails(
+            PlayLayer::get()
+        );
+
+        refresh();
+    }
+
+
+    // =================================================
+    // RESTART
+    // =================================================
+
     void onRestart(
         CCObject*
     ) {
@@ -530,16 +857,81 @@ protected:
     }
 
 
-    void onSlower(
+    // =================================================
+    // PLACE CHECKPOINT
+    // =================================================
+
+    void onPlaceCheckpoint(
         CCObject*
     ) {
 
-        float speed =
-            std::clamp(
-                getSpeed() - 0.25f,
-                0.25f,
-                4.0f
+        if (
+            auto play =
+                PlayLayer::get()
+        ) {
+
+            this->onClose(
+                nullptr
             );
+
+            play->togglePracticeMode(
+                true
+            );
+
+            play->createCheckpoint();
+        }
+
+        else {
+
+            FLAlertLayer::create(
+                "Samuel Mod Menu",
+                "Start a level first.",
+                "OK"
+            )->show();
+        }
+    }
+
+
+    // =================================================
+    // REMOVE CHECKPOINT
+    // =================================================
+
+    void onRemoveCheckpoint(
+        CCObject*
+    ) {
+
+        if (
+            auto play =
+                PlayLayer::get()
+        ) {
+
+            this->onClose(
+                nullptr
+            );
+
+            play->removeCheckpoint(
+                false
+            );
+        }
+
+        else {
+
+            FLAlertLayer::create(
+                "Samuel Mod Menu",
+                "Start a level first.",
+                "OK"
+            )->show();
+        }
+    }
+
+
+    // =================================================
+    // SPEED PRESET HELPER
+    // =================================================
+
+    void setSpeedPreset(
+        float speed
+    ) {
 
         Mod::get()->setSavedValue(
             "speed",
@@ -552,44 +944,49 @@ protected:
     }
 
 
-    void onFaster(
+    void onSpeed05(
         CCObject*
     ) {
 
-        float speed =
-            std::clamp(
-                getSpeed() + 0.25f,
-                0.25f,
-                4.0f
-            );
-
-        Mod::get()->setSavedValue(
-            "speed",
-            speed
+        setSpeedPreset(
+            0.5f
         );
-
-        applySpeed();
-
-        refresh();
     }
 
 
-    void onNormalSpeed(
+    void onSpeed1(
         CCObject*
     ) {
 
-        Mod::get()->setSavedValue(
-            "speed",
+        setSpeedPreset(
             1.0f
         );
-
-        applySpeed();
-
-        refresh();
     }
 
 
-    // CLOSE MENU AND UNFREEZE LEVEL
+    void onSpeed2(
+        CCObject*
+    ) {
+
+        setSpeedPreset(
+            2.0f
+        );
+    }
+
+
+    void onSpeed4(
+        CCObject*
+    ) {
+
+        setSpeedPreset(
+            4.0f
+        );
+    }
+
+
+    // =================================================
+    // CLOSE MENU
+    // =================================================
 
     void onClose(
         CCObject* sender
@@ -663,13 +1060,11 @@ public:
 };
 
 
-// ======================================================
-// OPEN / CLOSE MENU
-// ======================================================
+// =====================================================
+// OPEN CLOSE MENU
+// =====================================================
 
 static void toggleSamuelMenu() {
-
-    // M PRESSED WHILE MENU IS OPEN
 
     if (
         g_samuelPopup &&
@@ -693,7 +1088,7 @@ static void toggleSamuelMenu() {
     }
 
 
-    // FREEZE GAME WITHOUT ESC MENU
+    // FREEZE LEVEL WITHOUT ESC MENU
 
     if (
         auto play =
@@ -719,14 +1114,13 @@ static void toggleSamuelMenu() {
     g_samuelPopup =
         popup;
 
-
     popup->show();
 }
 
 
-// ======================================================
+// =====================================================
 // M HOTKEY
-// ======================================================
+// =====================================================
 
 class $modify(
     SamuelKeyboardHook,
@@ -764,9 +1158,9 @@ class $modify(
 };
 
 
-// ======================================================
+// =====================================================
 // SETTINGS BUTTON
-// ======================================================
+// =====================================================
 
 class $modify(
     SamuelOptionsLayer,
@@ -781,12 +1175,10 @@ class $modify(
         auto menu =
             CCMenu::create();
 
-
         menu->setPosition({
             0.f,
             0.f
         });
-
 
         menu->setID(
             "samuel-mod-menu"
@@ -858,9 +1250,9 @@ class $modify(
 };
 
 
-// ======================================================
-// GAMEPLAY MODS
-// ======================================================
+// =====================================================
+// PLAY LAYER
+// =====================================================
 
 class $modify(
     SamuelPlayLayer,
@@ -918,6 +1310,11 @@ class $modify(
         }
 
 
+        applyTrails(
+            this
+        );
+
+
         return true;
     }
 
@@ -926,6 +1323,8 @@ class $modify(
         PlayerObject* player,
         GameObject* object
     ) {
+
+        // NOCLIP
 
         if (
             getNoclip() &&
@@ -940,5 +1339,16 @@ class $modify(
             player,
             object
         );
+
+
+        // FAST AUTO RETRY
+
+        if (
+            getAutoRetry() &&
+            !m_levelEndAnimationStarted
+        ) {
+
+            this->delayedResetLevel();
+        }
     }
 };

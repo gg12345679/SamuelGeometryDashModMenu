@@ -1176,12 +1176,7 @@ class $modify(SamuelPlayLayer, PlayLayer) {
         fields->m_percentLabel2 = makeHudLabel(win.height - 76.f);
 
         fields->m_playerHitboxNode = CCDrawNode::create();
-        if (auto objectLayer = this->getObjectLayer()) {
-            objectLayer->addChild(fields->m_playerHitboxNode, 9999);
-        }
-        else {
-            this->addChild(fields->m_playerHitboxNode, 9999);
-        }
+        this->addChild(fields->m_playerHitboxNode, 9999);
 
         applyTrailVisibility(this);
         updateHitboxes();

@@ -19,6 +19,11 @@
 using namespace geode::prelude;
 
 static bool g_menuPausedGame = false;
+static PlayLayer* g_menuPausedLayer = nullptr;
+static double g_lastMenuToggleTime = -1000.0;
+static bool g_consumeEscapeRelease = false;
+static constexpr double MENU_TOGGLE_DEBOUNCE_SECONDS = 0.12;
+
 static bool g_slowMoHeld = false;
 static bool g_resetDeathsRequested = false;
 static std::deque<double> g_clickTimes;
@@ -124,6 +129,42 @@ static void applySpeed() {
     if (auto director = CCDirector::get()) {
         if (auto scheduler = director->getScheduler()) {
             scheduler->setTimeScale(speed);
+        }
+    }
+}
+
+static void releaseSamuelMenuPause() {
+    auto play = PlayLayer::get();
+
+    if (
+        g_menuPausedGame &&
+        play &&
+        play == g_menuPausedLayer &&
+        play->m_isPaused
+    ) {
+        play->m_isPaused = false;
+        play->resumeSchedulerAndActions();
+    }
+
+    g_menuPausedGame = false;
+    g_menuPausedLayer = nullptr;
+    applySpeed();
+}
+
+static void pauseLevelForSamuelMenu() {
+    g_menuPausedGame = false;
+    g_menuPausedLayer = nullptr;
+
+    if (auto play = PlayLayer::get()) {
+        if (!play->m_isPaused) {
+            // Prevent a held slow-motion key from getting stuck while the menu is modal.
+            g_slowMoHeld = false;
+
+            play->m_isPaused = true;
+            play->pauseSchedulerAndActions();
+
+            g_menuPausedGame = true;
+            g_menuPausedLayer = play;
         }
     }
 }
@@ -348,6 +389,9 @@ protected:
     }
 
     void showTab(int tab) {
+        tab = std::clamp(tab, 0, TAB_COUNT - 1);
+        setInt("menu-last-tab", tab);
+
         for (int i = 0; i < TAB_COUNT; ++i) {
             if (m_pages[i]) {
                 m_pages[i]->setVisible(i == tab);
@@ -582,7 +626,7 @@ protected:
         addAction(m_pages[TAB_FAVORITES], ACT_TELEPORT, {cx - 125.f, 70.f});
         addAction(m_pages[TAB_FAVORITES], ACT_RESTART, {cx + 125.f, 70.f});
 
-        showTab(TAB_GAME);
+        showTab(std::clamp(getInt("menu-last-tab", TAB_GAME), 0, TAB_COUNT - 1));
         refresh();
         return true;
     }
@@ -775,16 +819,7 @@ protected:
 
     void onClose(CCObject* sender) override {
         g_samuelPopup = nullptr;
-
-        if (g_menuPausedGame) {
-            if (auto play = PlayLayer::get()) {
-                play->m_isPaused = false;
-                play->resumeSchedulerAndActions();
-            }
-            g_menuPausedGame = false;
-            applySpeed();
-        }
-
+        releaseSamuelMenuPause();
         geode::Popup::onClose(sender);
     }
 
@@ -808,22 +843,41 @@ public:
 // OPEN / CLOSE MENU
 // =====================================================
 
+static bool isSamuelMenuOpen() {
+    return g_samuelPopup && g_samuelPopup->getParent();
+}
+
+static bool canToggleSamuelMenuNow() {
+    double now = nowSeconds();
+    if (now - g_lastMenuToggleTime < MENU_TOGGLE_DEBOUNCE_SECONDS) {
+        return false;
+    }
+
+    g_lastMenuToggleTime = now;
+    return true;
+}
+
 static void toggleSamuelMenu() {
-    if (g_samuelPopup && g_samuelPopup->getParent()) {
+    if (!canToggleSamuelMenuNow()) {
+        return;
+    }
+
+    // Clean up a pointer left behind by a popup that was removed with its scene.
+    if (g_samuelPopup && !g_samuelPopup->getParent()) {
+        g_samuelPopup = nullptr;
+    }
+
+    if (isSamuelMenuOpen()) {
         g_samuelPopup->closeMenu();
         return;
     }
 
     auto popup = SamuelPopup::create();
-    if (!popup) return;
-
-    if (auto play = PlayLayer::get()) {
-        if (!play->m_isPaused) {
-            play->m_isPaused = true;
-            play->pauseSchedulerAndActions();
-            g_menuPausedGame = true;
-        }
+    if (!popup) {
+        return;
     }
+
+    pauseLevelForSamuelMenu();
 
     g_samuelPopup = popup;
     popup->show();
@@ -843,8 +897,33 @@ class $modify(SamuelKeyboardHook, cocos2d::CCKeyboardDispatcher) {
         bool repeat,
         double timestamp
     ) {
-        if (down && !repeat && key == cocos2d::KEY_M) {
-            toggleSamuelMenu();
+        // M is fully owned by Samuel Mods so it never leaks through to GD.
+        if (key == cocos2d::KEY_M) {
+            if (down && !repeat) {
+                toggleSamuelMenu();
+            }
+            return true;
+        }
+
+        // Consume the Escape key release after Escape was used to close Samuel Mods.
+        if (key == cocos2d::KEY_Escape && g_consumeEscapeRelease) {
+            if (!down) {
+                g_consumeEscapeRelease = false;
+            }
+            return true;
+        }
+
+        // Samuel Mods acts like a modal menu: Escape closes it and gameplay keys
+        // do not reach the level while the popup is open.
+        if (isSamuelMenuOpen()) {
+            if (key == cocos2d::KEY_Escape) {
+                if (down && !repeat) {
+                    g_consumeEscapeRelease = true;
+                    toggleSamuelMenu();
+                }
+                return true;
+            }
+
             return true;
         }
 

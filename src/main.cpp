@@ -2,10 +2,13 @@
 #include <Geode/modify/OptionsLayer.hpp>
 #include <Geode/modify/PlayLayer.hpp>
 #include <Geode/ui/Popup.hpp>
+#include <Geode/cocos/robtop/keyboard_dispatcher/CCKeyboardDispatcher.h>
 #include <fmt/format.h>
 #include <algorithm>
 
 using namespace geode::prelude;
+
+static bool g_menuPausedGame = false;
 
 static bool getNoclip() {
     return Mod::get()->getSavedValue<bool>("noclip", false);
@@ -24,16 +27,27 @@ static float getSpeed() {
 }
 
 static void applySpeed() {
+    if (g_menuPausedGame) {
+        return;
+    }
+
     float speed = std::clamp(getSpeed(), 0.25f, 4.0f);
-    CCDirector::get()->getScheduler()->setTimeScale(speed);
+
+    cocos2d::CCDirector::get()
+        ->getScheduler()
+        ->setTimeScale(speed);
 }
+
+class SamuelPopup;
+
+static SamuelPopup* g_samuelPopup = nullptr;
 
 class SamuelPopup : public geode::Popup {
 protected:
     ButtonSprite* m_noclipSprite = nullptr;
     ButtonSprite* m_hitboxSprite = nullptr;
     ButtonSprite* m_practiceSprite = nullptr;
-    CCLabelBMFont* m_speedLabel = nullptr;
+    cocos2d::CCLabelBMFont* m_speedLabel = nullptr;
 
     bool initSamuel() {
         if (!geode::Popup::init(390.f, 280.f)) {
@@ -42,7 +56,7 @@ protected:
 
         this->setTitle("Samuel Mod Menu");
 
-        auto category = CCLabelBMFont::create(
+        auto category = cocos2d::CCLabelBMFont::create(
             "GAMEPLAY",
             "goldFont.fnt"
         );
@@ -54,6 +68,8 @@ protected:
             Anchor::Top,
             ccp(0.f, -45.f)
         );
+
+        // NOCLIP
 
         m_noclipSprite = ButtonSprite::create(
             "Noclip: OFF",
@@ -78,6 +94,8 @@ protected:
             ccp(-90.f, 45.f)
         );
 
+        // HITBOXES
+
         m_hitboxSprite = ButtonSprite::create(
             "Hitboxes: OFF",
             130,
@@ -100,6 +118,8 @@ protected:
             Anchor::Center,
             ccp(90.f, 45.f)
         );
+
+        // AUTO PRACTICE
 
         m_practiceSprite = ButtonSprite::create(
             "Auto Practice: OFF",
@@ -124,6 +144,8 @@ protected:
             ccp(-90.f, -15.f)
         );
 
+        // RESTART LEVEL
+
         auto restartSprite = ButtonSprite::create(
             "Restart Level",
             130,
@@ -146,6 +168,8 @@ protected:
             Anchor::Center,
             ccp(90.f, -15.f)
         );
+
+        // SPEED -
 
         auto slowerSprite = ButtonSprite::create(
             "-",
@@ -170,7 +194,9 @@ protected:
             ccp(-90.f, 45.f)
         );
 
-        m_speedLabel = CCLabelBMFont::create(
+        // SPEED LABEL
+
+        m_speedLabel = cocos2d::CCLabelBMFont::create(
             "",
             "bigFont.fnt"
         );
@@ -182,6 +208,8 @@ protected:
             Anchor::Bottom,
             ccp(0.f, 47.f)
         );
+
+        // SPEED +
 
         auto fasterSprite = ButtonSprite::create(
             "+",
@@ -205,6 +233,8 @@ protected:
             Anchor::Bottom,
             ccp(90.f, 45.f)
         );
+
+        // RESET SPEED
 
         auto resetSprite = ButtonSprite::create(
             "Reset 1x",
@@ -230,6 +260,7 @@ protected:
         );
 
         refresh();
+
         return true;
     }
 
@@ -264,13 +295,11 @@ protected:
                 getSpeed()
             );
 
-            m_speedLabel->setString(
-                text.c_str()
-            );
+            m_speedLabel->setString(text.c_str());
         }
     }
 
-    void onNoclip(CCObject*) {
+    void onNoclip(cocos2d::CCObject*) {
         Mod::get()->setSavedValue(
             "noclip",
             !getNoclip()
@@ -279,7 +308,7 @@ protected:
         refresh();
     }
 
-    void onHitboxes(CCObject*) {
+    void onHitboxes(cocos2d::CCObject*) {
         bool enabled = !getHitboxes();
 
         Mod::get()->setSavedValue(
@@ -291,16 +320,14 @@ protected:
             play->toggleDebugDraw();
 
             if (play->m_debugDrawNode) {
-                play->m_debugDrawNode->setVisible(
-                    enabled
-                );
+                play->m_debugDrawNode->setVisible(enabled);
             }
         }
 
         refresh();
     }
 
-    void onPractice(CCObject*) {
+    void onPractice(cocos2d::CCObject*) {
         bool enabled = !getAutoPractice();
 
         Mod::get()->setSavedValue(
@@ -309,17 +336,16 @@ protected:
         );
 
         if (auto play = PlayLayer::get()) {
-            play->togglePracticeMode(
-                enabled
-            );
+            play->togglePracticeMode(enabled);
         }
 
         refresh();
     }
 
-    void onRestart(CCObject*) {
+    void onRestart(cocos2d::CCObject*) {
         if (auto play = PlayLayer::get()) {
             this->onClose(nullptr);
+
             play->resetLevel();
         }
         else {
@@ -331,7 +357,7 @@ protected:
         }
     }
 
-    void onSlower(CCObject*) {
+    void onSlower(cocos2d::CCObject*) {
         float speed = std::clamp(
             getSpeed() - 0.25f,
             0.25f,
@@ -347,7 +373,7 @@ protected:
         refresh();
     }
 
-    void onFaster(CCObject*) {
+    void onFaster(cocos2d::CCObject*) {
         float speed = std::clamp(
             getSpeed() + 0.25f,
             0.25f,
@@ -363,7 +389,7 @@ protected:
         refresh();
     }
 
-    void onNormalSpeed(CCObject*) {
+    void onNormalSpeed(cocos2d::CCObject*) {
         Mod::get()->setSavedValue(
             "speed",
             1.0f
@@ -373,22 +399,86 @@ protected:
         refresh();
     }
 
+    void onClose(cocos2d::CCObject* sender) override {
+        g_samuelPopup = nullptr;
+
+        if (g_menuPausedGame) {
+            g_menuPausedGame = false;
+            applySpeed();
+        }
+
+        geode::Popup::onClose(sender);
+    }
+
 public:
     static SamuelPopup* create() {
         auto ret = new SamuelPopup();
 
-        if (
-            ret &&
-            ret->initSamuel()
-        ) {
+        if (ret && ret->initSamuel()) {
             ret->autorelease();
             return ret;
         }
 
         delete ret;
+
         return nullptr;
     }
+
+    void closeFromHotkey() {
+        this->onClose(nullptr);
+    }
 };
+
+static void openSamuelMenu() {
+    if (
+        g_samuelPopup &&
+        g_samuelPopup->getParent()
+    ) {
+        g_samuelPopup->closeFromHotkey();
+        return;
+    }
+
+    auto popup = SamuelPopup::create();
+
+    if (!popup) {
+        return;
+    }
+
+    g_samuelPopup = popup;
+
+    popup->show();
+
+    if (auto play = PlayLayer::get()) {
+        if (!play->m_isPaused) {
+            g_menuPausedGame = true;
+
+            cocos2d::CCDirector::get()
+                ->getScheduler()
+                ->setTimeScale(0.f);
+        }
+    }
+}
+
+class SamuelKeyboard : public cocos2d::CCKeyboardDelegate {
+public:
+    void keyDown(
+        cocos2d::enumKeyCodes key,
+        double
+    ) override {
+        if (key == cocos2d::KEY_M) {
+            openSamuelMenu();
+        }
+    }
+};
+
+static SamuelKeyboard* g_keyboard = nullptr;
+
+$execute {
+    g_keyboard = new SamuelKeyboard();
+
+    cocos2d::CCKeyboardDispatcher::get()
+        ->forceAddDelegate(g_keyboard);
+}
 
 class $modify(
     SamuelOptionsLayer,
@@ -397,7 +487,7 @@ class $modify(
     void customSetup() {
         OptionsLayer::customSetup();
 
-        auto menu = CCMenu::create();
+        auto menu = cocos2d::CCMenu::create();
 
         menu->setPosition({
             0.f,
@@ -430,7 +520,8 @@ class $modify(
         button->setScale(0.65f);
 
         auto size =
-            CCDirector::get()->getWinSize();
+            cocos2d::CCDirector::get()
+            ->getWinSize();
 
         button->setPosition({
             size.width / 2.f + 150.f,
@@ -445,13 +536,8 @@ class $modify(
         );
     }
 
-    void onSamuelMods(CCObject*) {
-        auto popup =
-            SamuelPopup::create();
-
-        if (popup) {
-            popup->show();
-        }
+    void onSamuelMods(cocos2d::CCObject*) {
+        openSamuelMenu();
     }
 };
 
@@ -477,18 +563,14 @@ class $modify(
         applySpeed();
 
         if (getAutoPractice()) {
-            this->togglePracticeMode(
-                true
-            );
+            this->togglePracticeMode(true);
         }
 
         if (getHitboxes()) {
             this->toggleDebugDraw();
 
             if (this->m_debugDrawNode) {
-                this->m_debugDrawNode->setVisible(
-                    true
-                );
+                this->m_debugDrawNode->setVisible(true);
             }
         }
 

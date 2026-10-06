@@ -322,28 +322,123 @@ static std::string actionText(int action) {
 class SamuelPopup : public geode::Popup {
 protected:
     std::array<CCMenu*, TAB_COUNT> m_pages{};
+    std::array<ButtonSprite*, TAB_COUNT> m_tabSprites{};
     std::vector<std::pair<int, ButtonSprite*>> m_actionSprites;
+
     CCLabelBMFont* m_infoLabel = nullptr;
     CCLabelBMFont* m_speedLabel = nullptr;
+    CCLabelBMFont* m_pageTitle = nullptr;
+    CCLabelBMFont* m_pageSubtitle = nullptr;
+    CCLabelBMFont* m_statusLabel = nullptr;
+
+    int m_currentTab = TAB_GAME;
+
+    static char const* tabTitle(int tab) {
+        switch (tab) {
+            case TAB_GAME: return "GAMEPLAY";
+            case TAB_HUD: return "HUD & STATS";
+            case TAB_VISUAL: return "VISUALS";
+            case TAB_TOOLS: return "TOOLS";
+            case TAB_INFO: return "LEVEL INFO";
+            case TAB_FAVORITES: return "FAVORITES";
+            default: return "SAMUEL MODS";
+        }
+    }
+
+    static char const* tabSubtitle(int tab) {
+        switch (tab) {
+            case TAB_GAME: return "Player and level gameplay controls";
+            case TAB_HUD: return "Counters, FPS and on-screen stats";
+            case TAB_VISUAL: return "Hitboxes, trails and player appearance";
+            case TAB_TOOLS: return "Practice tools, checkpoints and speed";
+            case TAB_INFO: return "Live information about the current level";
+            case TAB_FAVORITES: return "Your most useful Samuel Mods shortcuts";
+            default: return "Samuel Mod Menu";
+        }
+    }
+
+    bool actionIsToggle(int action) const {
+        switch (action) {
+            case ACT_NOCLIP:
+            case ACT_AUTO_PRACTICE:
+            case ACT_AUTO_RETRY:
+            case ACT_INSTANT_RESTART:
+            case ACT_PRACTICE_MUSIC:
+            case ACT_SHOW_FPS:
+            case ACT_SHOW_CPS:
+            case ACT_SHOW_ATTEMPTS:
+            case ACT_SHOW_DEATHS:
+            case ACT_SHOW_PERCENT:
+            case ACT_NO_DEATH_FX:
+            case ACT_HITBOX_ALWAYS:
+            case ACT_PLAYER_HITBOX_ONLY:
+            case ACT_OBJECT_HITBOX_ONLY:
+            case ACT_RAINBOW_TRAIL:
+            case ACT_LONG_TRAIL:
+            case ACT_TRAIL:
+            case ACT_HIDE_PLAYER:
+            case ACT_AUTO_CHECKPOINTS:
+            case ACT_SLOWMO_HOTKEY:
+            case ACT_SPEED_HOTKEYS:
+                return true;
+            default:
+                return false;
+        }
+    }
+
+    bool actionState(int action) const {
+        switch (action) {
+            case ACT_NOCLIP: return getNoclip();
+            case ACT_AUTO_PRACTICE: return getAutoPractice();
+            case ACT_AUTO_RETRY: return getAutoRetry();
+            case ACT_INSTANT_RESTART: return getInstantRestart();
+            case ACT_PRACTICE_MUSIC: return getPracticeMusic();
+            case ACT_SHOW_FPS: return getShowFPS();
+            case ACT_SHOW_CPS: return getShowCPS();
+            case ACT_SHOW_ATTEMPTS: return getShowAttempts();
+            case ACT_SHOW_DEATHS: return getShowDeaths();
+            case ACT_SHOW_PERCENT: return getShowPercent();
+            case ACT_NO_DEATH_FX: return getNoDeathFX();
+            case ACT_HITBOX_ALWAYS: return getHitboxesAlways();
+            case ACT_PLAYER_HITBOX_ONLY: return getPlayerHitboxOnly();
+            case ACT_OBJECT_HITBOX_ONLY: return getObjectHitboxOnly();
+            case ACT_RAINBOW_TRAIL: return getRainbowTrail();
+            case ACT_LONG_TRAIL: return getLongTrail();
+            case ACT_TRAIL: return getTrailEnabled();
+            case ACT_HIDE_PLAYER: return getHidePlayer();
+            case ACT_AUTO_CHECKPOINTS: return getAutoCheckpoints();
+            case ACT_SLOWMO_HOTKEY: return getSlowMoHotkey();
+            case ACT_SPEED_HOTKEYS: return getSpeedHotkeys();
+            default: return false;
+        }
+    }
+
+    void setStatus(std::string const& text) {
+        if (m_statusLabel) {
+            m_statusLabel->setString(text.c_str());
+        }
+    }
 
     CCMenuItemSpriteExtra* addAction(
         CCMenu* page,
         int action,
         CCPoint pos,
-        float width = 190.f,
-        float scale = 0.48f
+        float width = 172.f,
+        float scale = 0.43f
     ) {
-        auto text = actionText(action);
+        auto label = actionText(action);
         auto sprite = ButtonSprite::create(
-            text.c_str(),
+            label.c_str(),
             static_cast<int>(width),
             0,
             scale,
             true,
             "goldFont.fnt",
-            "GJ_button_01.png",
+            "GJ_button_04.png",
             0.f
         );
+
+        sprite->setColor(ccc3(190, 185, 215));
 
         auto button = CCMenuItemSpriteExtra::create(
             sprite,
@@ -366,14 +461,17 @@ protected:
     ) {
         auto sprite = ButtonSprite::create(
             text,
-            76,
+            102,
             0,
-            0.45f,
+            0.42f,
             true,
             "goldFont.fnt",
             "GJ_button_04.png",
             0.f
         );
+
+        sprite->setColor(ccc3(155, 145, 185));
+        m_tabSprites[tab] = sprite;
 
         auto button = CCMenuItemSpriteExtra::create(
             sprite,
@@ -382,7 +480,7 @@ protected:
         );
 
         button->setTag(tab);
-        button->setScale(0.78f);
+        button->setScale(0.86f);
         button->setPosition(pos);
         tabMenu->addChild(button);
         return button;
@@ -390,16 +488,36 @@ protected:
 
     void showTab(int tab) {
         tab = std::clamp(tab, 0, TAB_COUNT - 1);
+        m_currentTab = tab;
         setInt("menu-last-tab", tab);
 
         for (int i = 0; i < TAB_COUNT; ++i) {
             if (m_pages[i]) {
                 m_pages[i]->setVisible(i == tab);
             }
+
+            if (m_tabSprites[i]) {
+                m_tabSprites[i]->setColor(
+                    i == tab
+                        ? ccc3(255, 218, 105)
+                        : ccc3(155, 145, 185)
+                );
+            }
         }
+
+        if (m_pageTitle) {
+            m_pageTitle->setString(tabTitle(tab));
+        }
+
+        if (m_pageSubtitle) {
+            m_pageSubtitle->setString(tabSubtitle(tab));
+        }
+
         if (tab == TAB_INFO) {
             updateInfo();
         }
+
+        setStatus("M / ESC close  -  Samuel Mods v16");
         refresh();
     }
 
@@ -447,12 +565,27 @@ protected:
     void refresh() {
         for (auto const& item : m_actionSprites) {
             if (!item.second) continue;
-            auto text = actionText(item.first);
-            item.second->setString(text.c_str());
+
+            auto label = actionText(item.first);
+            item.second->setString(label.c_str());
+
+            if (actionIsToggle(item.first)) {
+                item.second->setColor(
+                    actionState(item.first)
+                        ? ccc3(125, 235, 150)
+                        : ccc3(175, 170, 195)
+                );
+            }
+            else if (item.first == ACT_RESTART || item.first == ACT_RESET_DEATHS) {
+                item.second->setColor(ccc3(245, 155, 155));
+            }
+            else {
+                item.second->setColor(ccc3(205, 195, 235));
+            }
         }
 
         if (m_speedLabel) {
-            auto text = fmt::format("Current Speed: {:.2f}x", getSpeed());
+            auto text = fmt::format("CURRENT SPEED  {:.2f}x", getSpeed());
             m_speedLabel->setString(text.c_str());
         }
 
@@ -533,26 +666,86 @@ protected:
     }
 
     bool initSamuel() {
-        if (!geode::Popup::init(520.f, 330.f)) {
+        if (!geode::Popup::init(560.f, 350.f)) {
             return false;
         }
 
-        this->setTitle("Samuel Mod Menu");
+        this->setTitle("");
 
         auto size = m_mainLayer->getContentSize();
-        float cx = size.width / 2.f;
+
+        // Dark layered panels. These are visual only and do not receive input.
+        auto sidebar = CCLayerColor::create(
+            ccc4(22, 15, 40, 225),
+            116.f,
+            292.f
+        );
+        sidebar->setPosition({14.f, 24.f});
+        m_mainLayer->addChild(sidebar, 1);
+
+        auto contentPanel = CCLayerColor::create(
+            ccc4(32, 24, 54, 215),
+            405.f,
+            292.f
+        );
+        contentPanel->setPosition({140.f, 24.f});
+        m_mainLayer->addChild(contentPanel, 1);
+
+        auto accent = CCLayerColor::create(
+            ccc4(120, 78, 190, 255),
+            3.f,
+            292.f
+        );
+        accent->setPosition({132.f, 24.f});
+        m_mainLayer->addChild(accent, 2);
+
+        auto brand = CCLabelBMFont::create("SAMUEL", "bigFont.fnt");
+        brand->setScale(0.52f);
+        brand->setColor(ccc3(255, 220, 120));
+        brand->setPosition({72.f, 300.f});
+        m_mainLayer->addChild(brand, 15);
+
+        auto brandSub = CCLabelBMFont::create("MODS  v16", "goldFont.fnt");
+        brandSub->setScale(0.34f);
+        brandSub->setColor(ccc3(190, 175, 220));
+        brandSub->setPosition({72.f, 281.f});
+        m_mainLayer->addChild(brandSub, 15);
+
+        m_pageTitle = CCLabelBMFont::create("", "bigFont.fnt");
+        m_pageTitle->setScale(0.48f);
+        m_pageTitle->setAnchorPoint({0.f, 0.5f});
+        m_pageTitle->setColor(ccc3(255, 224, 135));
+        m_pageTitle->setPosition({158.f, 296.f});
+        m_mainLayer->addChild(m_pageTitle, 15);
+
+        m_pageSubtitle = CCLabelBMFont::create("", "chatFont.fnt");
+        m_pageSubtitle->setScale(0.45f);
+        m_pageSubtitle->setAnchorPoint({0.f, 0.5f});
+        m_pageSubtitle->setColor(ccc3(195, 188, 215));
+        m_pageSubtitle->setPosition({159.f, 278.f});
+        m_mainLayer->addChild(m_pageSubtitle, 15);
+
+        m_statusLabel = CCLabelBMFont::create("", "chatFont.fnt");
+        m_statusLabel->setScale(0.42f);
+        m_statusLabel->setColor(ccc3(180, 170, 205));
+        m_statusLabel->setPosition({342.f, 35.f});
+        m_mainLayer->addChild(m_statusLabel, 15);
 
         auto tabMenu = CCMenu::create();
         tabMenu->setPosition({0.f, 0.f});
         m_mainLayer->addChild(tabMenu, 30);
 
         static constexpr std::array<char const*, TAB_COUNT> names = {
-            "GAME", "HUD", "VISUAL", "TOOLS", "INFO", "FAV"
+            "GAMEPLAY", "HUD", "VISUALS", "TOOLS", "INFO", "FAVORITES"
         };
 
         for (int i = 0; i < TAB_COUNT; ++i) {
-            float x = cx - 205.f + i * 82.f;
-            addTab(tabMenu, i, names[i], {x, size.height - 48.f});
+            addTab(
+                tabMenu,
+                i,
+                names[i],
+                {72.f, 244.f - i * 39.f}
+            );
         }
 
         for (int i = 0; i < TAB_COUNT; ++i) {
@@ -561,70 +754,77 @@ protected:
             m_mainLayer->addChild(m_pages[i], 10);
         }
 
-        // GAME PAGE
-        addAction(m_pages[TAB_GAME], ACT_NOCLIP, {cx - 125.f, 220.f});
-        addAction(m_pages[TAB_GAME], ACT_AUTO_PRACTICE, {cx + 125.f, 220.f});
-        addAction(m_pages[TAB_GAME], ACT_AUTO_RETRY, {cx - 125.f, 170.f});
-        addAction(m_pages[TAB_GAME], ACT_INSTANT_RESTART, {cx + 125.f, 170.f});
-        addAction(m_pages[TAB_GAME], ACT_PRACTICE_MUSIC, {cx - 125.f, 120.f});
-        addAction(m_pages[TAB_GAME], ACT_GRAVITY, {cx + 125.f, 120.f});
-        addAction(m_pages[TAB_GAME], ACT_TELEPORT, {cx - 125.f, 70.f});
-        addAction(m_pages[TAB_GAME], ACT_RESTART, {cx + 125.f, 70.f});
+        constexpr float leftX = 244.f;
+        constexpr float rightX = 441.f;
+        constexpr float centerX = 343.f;
 
-        // HUD PAGE
-        addAction(m_pages[TAB_HUD], ACT_FPS_LIMIT, {cx - 125.f, 220.f});
-        addAction(m_pages[TAB_HUD], ACT_SHOW_FPS, {cx + 125.f, 220.f});
-        addAction(m_pages[TAB_HUD], ACT_SHOW_CPS, {cx - 125.f, 170.f});
-        addAction(m_pages[TAB_HUD], ACT_SHOW_ATTEMPTS, {cx + 125.f, 170.f});
-        addAction(m_pages[TAB_HUD], ACT_SHOW_DEATHS, {cx - 125.f, 120.f});
-        addAction(m_pages[TAB_HUD], ACT_SHOW_PERCENT, {cx + 125.f, 120.f});
-        addAction(m_pages[TAB_HUD], ACT_RESET_DEATHS, {cx, 70.f}, 210.f);
+        // GAMEPLAY
+        addAction(m_pages[TAB_GAME], ACT_NOCLIP, {leftX, 238.f});
+        addAction(m_pages[TAB_GAME], ACT_AUTO_PRACTICE, {rightX, 238.f});
+        addAction(m_pages[TAB_GAME], ACT_AUTO_RETRY, {leftX, 190.f});
+        addAction(m_pages[TAB_GAME], ACT_INSTANT_RESTART, {rightX, 190.f});
+        addAction(m_pages[TAB_GAME], ACT_PRACTICE_MUSIC, {leftX, 142.f});
+        addAction(m_pages[TAB_GAME], ACT_GRAVITY, {rightX, 142.f});
+        addAction(m_pages[TAB_GAME], ACT_TELEPORT, {leftX, 94.f});
+        addAction(m_pages[TAB_GAME], ACT_RESTART, {rightX, 94.f});
 
-        // VISUAL PAGE
-        addAction(m_pages[TAB_VISUAL], ACT_NO_DEATH_FX, {cx - 125.f, 230.f});
-        addAction(m_pages[TAB_VISUAL], ACT_HITBOX_ALWAYS, {cx + 125.f, 230.f});
-        addAction(m_pages[TAB_VISUAL], ACT_PLAYER_HITBOX_ONLY, {cx - 125.f, 185.f});
-        addAction(m_pages[TAB_VISUAL], ACT_OBJECT_HITBOX_ONLY, {cx + 125.f, 185.f});
-        addAction(m_pages[TAB_VISUAL], ACT_RAINBOW_TRAIL, {cx - 125.f, 140.f});
-        addAction(m_pages[TAB_VISUAL], ACT_LONG_TRAIL, {cx + 125.f, 140.f});
-        addAction(m_pages[TAB_VISUAL], ACT_TRAIL, {cx - 125.f, 95.f});
-        addAction(m_pages[TAB_VISUAL], ACT_HIDE_PLAYER, {cx + 125.f, 95.f});
-        addAction(m_pages[TAB_VISUAL], ACT_PLAYER_SCALE, {cx, 50.f}, 220.f);
+        // HUD
+        addAction(m_pages[TAB_HUD], ACT_FPS_LIMIT, {leftX, 238.f});
+        addAction(m_pages[TAB_HUD], ACT_SHOW_FPS, {rightX, 238.f});
+        addAction(m_pages[TAB_HUD], ACT_SHOW_CPS, {leftX, 190.f});
+        addAction(m_pages[TAB_HUD], ACT_SHOW_ATTEMPTS, {rightX, 190.f});
+        addAction(m_pages[TAB_HUD], ACT_SHOW_DEATHS, {leftX, 142.f});
+        addAction(m_pages[TAB_HUD], ACT_SHOW_PERCENT, {rightX, 142.f});
+        addAction(m_pages[TAB_HUD], ACT_RESET_DEATHS, {centerX, 94.f}, 190.f);
 
-        // TOOLS PAGE
-        addAction(m_pages[TAB_TOOLS], ACT_AUTO_CHECKPOINTS, {cx - 125.f, 225.f});
-        addAction(m_pages[TAB_TOOLS], ACT_CHECKPOINT_DELAY, {cx + 125.f, 225.f});
-        addAction(m_pages[TAB_TOOLS], ACT_REMOVE_ALL_CHECKPOINTS, {cx - 125.f, 177.f});
-        addAction(m_pages[TAB_TOOLS], ACT_SLOWMO_HOTKEY, {cx + 125.f, 177.f});
-        addAction(m_pages[TAB_TOOLS], ACT_SPEED_HOTKEYS, {cx - 125.f, 129.f});
-        addAction(m_pages[TAB_TOOLS], ACT_PLACE_CHECKPOINT, {cx + 125.f, 129.f});
-        addAction(m_pages[TAB_TOOLS], ACT_REMOVE_CHECKPOINT, {cx, 81.f}, 210.f);
+        // VISUALS
+        addAction(m_pages[TAB_VISUAL], ACT_NO_DEATH_FX, {leftX, 246.f});
+        addAction(m_pages[TAB_VISUAL], ACT_HITBOX_ALWAYS, {rightX, 246.f});
+        addAction(m_pages[TAB_VISUAL], ACT_PLAYER_HITBOX_ONLY, {leftX, 205.f});
+        addAction(m_pages[TAB_VISUAL], ACT_OBJECT_HITBOX_ONLY, {rightX, 205.f});
+        addAction(m_pages[TAB_VISUAL], ACT_RAINBOW_TRAIL, {leftX, 164.f});
+        addAction(m_pages[TAB_VISUAL], ACT_LONG_TRAIL, {rightX, 164.f});
+        addAction(m_pages[TAB_VISUAL], ACT_TRAIL, {leftX, 123.f});
+        addAction(m_pages[TAB_VISUAL], ACT_HIDE_PLAYER, {rightX, 123.f});
+        addAction(m_pages[TAB_VISUAL], ACT_PLAYER_SCALE, {centerX, 82.f}, 190.f);
 
-        addAction(m_pages[TAB_TOOLS], ACT_SPEED_05, {cx - 150.f, 38.f}, 70.f, 0.58f);
-        addAction(m_pages[TAB_TOOLS], ACT_SPEED_1, {cx - 50.f, 38.f}, 70.f, 0.58f);
-        addAction(m_pages[TAB_TOOLS], ACT_SPEED_2, {cx + 50.f, 38.f}, 70.f, 0.58f);
-        addAction(m_pages[TAB_TOOLS], ACT_SPEED_4, {cx + 150.f, 38.f}, 70.f, 0.58f);
+        // TOOLS
+        addAction(m_pages[TAB_TOOLS], ACT_AUTO_CHECKPOINTS, {leftX, 244.f});
+        addAction(m_pages[TAB_TOOLS], ACT_CHECKPOINT_DELAY, {rightX, 244.f});
+        addAction(m_pages[TAB_TOOLS], ACT_REMOVE_ALL_CHECKPOINTS, {leftX, 201.f});
+        addAction(m_pages[TAB_TOOLS], ACT_SLOWMO_HOTKEY, {rightX, 201.f});
+        addAction(m_pages[TAB_TOOLS], ACT_SPEED_HOTKEYS, {leftX, 158.f});
+        addAction(m_pages[TAB_TOOLS], ACT_PLACE_CHECKPOINT, {rightX, 158.f});
+        addAction(m_pages[TAB_TOOLS], ACT_REMOVE_CHECKPOINT, {centerX, 115.f}, 190.f);
+
+        addAction(m_pages[TAB_TOOLS], ACT_SPEED_05, {208.f, 73.f}, 65.f, 0.52f);
+        addAction(m_pages[TAB_TOOLS], ACT_SPEED_1, {298.f, 73.f}, 65.f, 0.52f);
+        addAction(m_pages[TAB_TOOLS], ACT_SPEED_2, {388.f, 73.f}, 65.f, 0.52f);
+        addAction(m_pages[TAB_TOOLS], ACT_SPEED_4, {478.f, 73.f}, 65.f, 0.52f);
 
         m_speedLabel = CCLabelBMFont::create("", "bigFont.fnt");
-        m_speedLabel->setScale(0.34f);
-        m_speedLabel->setPosition({cx, 14.f});
+        m_speedLabel->setScale(0.30f);
+        m_speedLabel->setColor(ccc3(205, 195, 235));
+        m_speedLabel->setPosition({centerX, 52.f});
         m_pages[TAB_TOOLS]->addChild(m_speedLabel);
 
-        // INFO PAGE
+        // INFO
         m_infoLabel = CCLabelBMFont::create("", "chatFont.fnt");
-        m_infoLabel->setScale(0.55f);
-        m_infoLabel->setPosition({cx, 145.f});
+        m_infoLabel->setScale(0.50f);
+        m_infoLabel->setAnchorPoint({0.f, 0.5f});
+        m_infoLabel->setColor(ccc3(220, 215, 235));
+        m_infoLabel->setPosition({170.f, 166.f});
         m_pages[TAB_INFO]->addChild(m_infoLabel);
 
-        // FAVORITES PAGE
-        addAction(m_pages[TAB_FAVORITES], ACT_NOCLIP, {cx - 125.f, 220.f});
-        addAction(m_pages[TAB_FAVORITES], ACT_INSTANT_RESTART, {cx + 125.f, 220.f});
-        addAction(m_pages[TAB_FAVORITES], ACT_HITBOX_ALWAYS, {cx - 125.f, 170.f});
-        addAction(m_pages[TAB_FAVORITES], ACT_RAINBOW_TRAIL, {cx + 125.f, 170.f});
-        addAction(m_pages[TAB_FAVORITES], ACT_SPEED_1, {cx - 125.f, 120.f});
-        addAction(m_pages[TAB_FAVORITES], ACT_SPEED_2, {cx + 125.f, 120.f});
-        addAction(m_pages[TAB_FAVORITES], ACT_TELEPORT, {cx - 125.f, 70.f});
-        addAction(m_pages[TAB_FAVORITES], ACT_RESTART, {cx + 125.f, 70.f});
+        // FAVORITES
+        addAction(m_pages[TAB_FAVORITES], ACT_NOCLIP, {leftX, 238.f});
+        addAction(m_pages[TAB_FAVORITES], ACT_INSTANT_RESTART, {rightX, 238.f});
+        addAction(m_pages[TAB_FAVORITES], ACT_HITBOX_ALWAYS, {leftX, 190.f});
+        addAction(m_pages[TAB_FAVORITES], ACT_RAINBOW_TRAIL, {rightX, 190.f});
+        addAction(m_pages[TAB_FAVORITES], ACT_SPEED_1, {leftX, 142.f});
+        addAction(m_pages[TAB_FAVORITES], ACT_SPEED_2, {rightX, 142.f});
+        addAction(m_pages[TAB_FAVORITES], ACT_TELEPORT, {leftX, 94.f});
+        addAction(m_pages[TAB_FAVORITES], ACT_RESTART, {rightX, 94.f});
 
         showTab(std::clamp(getInt("menu-last-tab", TAB_GAME), 0, TAB_COUNT - 1));
         refresh();
@@ -634,7 +834,9 @@ protected:
     void onTab(CCObject* sender) {
         auto node = static_cast<CCNode*>(sender);
         if (!node) return;
+
         showTab(node->getTag());
+        setStatus(fmt::format("{} selected", tabTitle(m_currentTab)));
     }
 
     void onAction(CCObject* sender) {
@@ -814,6 +1016,7 @@ protected:
                 break;
         }
 
+        setStatus(fmt::format("Updated: {}", actionText(action)));
         refresh();
     }
 
